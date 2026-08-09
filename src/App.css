@@ -502,6 +502,8 @@ select {
 
   isolation: isolate;
   overflow: visible;
+
+  transform: translateY(-34px);
 }
 
 
@@ -724,6 +726,7 @@ select {
 
   .frankie-stage {
     min-height: 510px;
+    transform: translateY(-28px);
   }
 
   .frankie-character {
@@ -787,6 +790,7 @@ select {
 
   .frankie-stage {
     min-height: 470px;
+    transform: translateY(-18px);
   }
 
   .frankie-character {
@@ -829,6 +833,7 @@ select {
 
   .frankie-stage {
     min-height: 390px;
+    transform: translateY(-12px);
   }
 
   .frankie-character {
