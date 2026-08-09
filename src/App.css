@@ -43,14 +43,12 @@ select {
 
 
 /* =========================================================
-   WELCOME PAGE
+   WELCOME
    ========================================================= */
 
 .frankie-welcome {
   position: relative;
-
   min-height: 100vh;
-
   overflow: hidden;
   isolation: isolate;
 
@@ -84,12 +82,9 @@ select {
 
 .frankie-welcome::before {
   content: "";
-
   position: absolute;
   inset: 0;
-
   z-index: -5;
-
   pointer-events: none;
 
   background:
@@ -104,18 +99,14 @@ select {
     );
 
   background-size: 70px 70px;
-
   opacity: 0.28;
 }
 
 .frankie-welcome::after {
   content: "";
-
   position: absolute;
   inset: 0;
-
   z-index: -4;
-
   pointer-events: none;
 
   background:
@@ -133,58 +124,45 @@ select {
 
 .welcome-ember-glow {
   position: absolute;
-
   border-radius: 50%;
-
   pointer-events: none;
-
   filter: blur(90px);
-
   z-index: -2;
 }
 
 .welcome-ember-glow-left {
   width: 340px;
   height: 340px;
-
   left: -170px;
   top: 24%;
-
   background: rgba(167, 75, 29, 0.11);
 }
 
 .welcome-ember-glow-right {
   width: 620px;
   height: 620px;
-
   right: -125px;
   top: 6%;
-
   background: rgba(211, 67, 20, 0.14);
 }
 
 
 /* =========================================================
-   FLOATING EMBERS
+   EMBERS
    ========================================================= */
 
 .floating-embers {
   position: absolute;
   inset: 0;
-
   z-index: 0;
-
   pointer-events: none;
 }
 
 .floating-embers span {
   position: absolute;
-
   width: 3px;
   height: 3px;
-
   border-radius: 50%;
-
   background: #ed9447;
 
   box-shadow:
@@ -236,17 +214,15 @@ select {
 
 .welcome-stage {
   position: relative;
-
   z-index: 2;
 
   flex: 1;
 
   width: min(1480px, 100%);
-
   margin: 0 auto;
 
   padding:
-    8px
+    12px
     clamp(32px, 6.5vw, 105px)
     0;
 
@@ -270,7 +246,6 @@ select {
 
 .welcome-content {
   position: relative;
-
   z-index: 5;
 
   max-width: 620px;
@@ -279,22 +254,36 @@ select {
   flex-direction: column;
   justify-content: flex-start;
 
-  padding-top: 42px;
+  padding-top: 14px;
   padding-bottom: 20px;
 }
 
 
 /* =========================================================
-   FEATHER & FIRE LOGO
+   LOGO CROPPING
    ========================================================= */
 
-.feather-fire-logo {
-  display: block;
+.logo-crop {
+  position: relative;
 
-  width: clamp(235px, 19vw, 320px);
+  width: 340px;
+  height: 125px;
+
+  overflow: hidden;
+
+  margin: 0 0 18px 0;
+}
+
+.feather-fire-logo {
+  position: absolute;
+
+  width: 340px;
   height: auto;
 
-  margin: 0 0 10px;
+  left: 0;
+  top: -118px;
+
+  display: block;
 
   object-fit: contain;
   object-position: left center;
@@ -306,13 +295,11 @@ select {
 
 
 /* =========================================================
-   WELCOME CONVERSATION
+   CONVERSATION
    ========================================================= */
 
 .welcome-conversation {
   max-width: 590px;
-
-  margin-top: 22px;
 }
 
 .welcome-title {
@@ -326,11 +313,9 @@ select {
     serif;
 
   font-size: clamp(2.65rem, 3.4vw, 3.85rem);
-
   font-weight: 500;
 
   line-height: 1.03;
-
   letter-spacing: -0.035em;
 
   text-shadow:
@@ -369,7 +354,6 @@ select {
   color: #c6bdb0;
 
   font-size: clamp(0.95rem, 0.95vw, 1.03rem);
-
   line-height: 1.58;
 }
 
@@ -383,9 +367,7 @@ select {
 
 .welcome-emphasis {
   margin-top: 18px;
-
   color: #e9d9c4;
-
   font-weight: 700;
 }
 
@@ -395,7 +377,6 @@ select {
 
 .welcome-final-line {
   margin-top: 18px;
-
   color: #f0e2cf;
 }
 
@@ -412,7 +393,6 @@ select {
   position: relative;
 
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
@@ -421,7 +401,6 @@ select {
   min-width: 245px;
 
   margin-top: 26px;
-
   padding: 15px 27px;
 
   border:
@@ -440,7 +419,6 @@ select {
   color: #fff8ed;
 
   font-weight: 800;
-
   letter-spacing: 0.015em;
 
   cursor: pointer;
@@ -466,7 +444,6 @@ select {
 
   left: 12%;
   right: 12%;
-
   bottom: -16px;
 
   height: 31px;
@@ -520,18 +497,16 @@ select {
   min-height: clamp(520px, 68vh, 720px);
 
   display: flex;
-
   align-items: flex-end;
   justify-content: center;
 
   isolation: isolate;
-
   overflow: visible;
 }
 
 
 /* =========================================================
-   FRANKIE AMBIENT AURA
+   FRANKIE AURA
    ========================================================= */
 
 .frankie-aura {
@@ -565,7 +540,7 @@ select {
 
 
 /* =========================================================
-   GLOWING FLOOR
+   FLOOR GLOW
    ========================================================= */
 
 .frankie-floor-glow {
@@ -603,11 +578,6 @@ select {
   z-index: 1;
 }
 
-
-/* =========================================================
-   BRIGHT CONTACT GLOW
-   ========================================================= */
-
 .frankie-contact-glow {
   position: absolute;
 
@@ -644,7 +614,7 @@ select {
 
 
 /* =========================================================
-   FRANKIE CHARACTER
+   FRANKIE
    ========================================================= */
 
 .frankie-character {
@@ -692,7 +662,6 @@ select {
   min-height: 58px;
 
   display: flex;
-
   align-items: center;
   justify-content: center;
 
@@ -710,7 +679,6 @@ select {
   color: #6f675e;
 
   font-size: 0.64rem;
-
   font-weight: 700;
 
   letter-spacing: 0.18em;
@@ -740,8 +708,14 @@ select {
     padding-inline: 46px;
   }
 
-  .welcome-content {
-    padding-top: 32px;
+  .logo-crop {
+    width: 310px;
+    height: 115px;
+  }
+
+  .feather-fire-logo {
+    width: 310px;
+    top: -108px;
   }
 
   .welcome-title {
@@ -755,10 +729,6 @@ select {
   .frankie-character {
     height: min(64vh, 600px);
   }
-
-  .frankie-floor-glow {
-    width: min(510px, 96%);
-  }
 }
 
 
@@ -767,7 +737,7 @@ select {
     grid-template-columns: 1fr;
 
     padding:
-      22px
+      20px
       28px
       0;
 
@@ -776,21 +746,27 @@ select {
 
   .welcome-content {
     margin: 0 auto;
-
     padding-top: 0;
     padding-bottom: 28px;
   }
 
+  .logo-crop {
+    width: 310px;
+    height: 115px;
+
+    margin:
+      0
+      auto
+      18px;
+  }
+
   .feather-fire-logo {
-    margin-inline: auto;
-    margin-bottom: 10px;
+    width: 310px;
+    top: -108px;
   }
 
   .welcome-conversation {
-    margin:
-      22px
-      auto
-      0;
+    margin-inline: auto;
   }
 
   .welcome-title {
@@ -817,14 +793,6 @@ select {
     width: min(90%, 520px);
     height: auto;
   }
-
-  .frankie-floor-glow {
-    width: min(520px, 92%);
-  }
-
-  .frankie-contact-glow {
-    width: min(340px, 64%);
-  }
 }
 
 
@@ -833,12 +801,14 @@ select {
     padding-inline: 20px;
   }
 
-  .feather-fire-logo {
-    width: 220px;
+  .logo-crop {
+    width: 250px;
+    height: 96px;
   }
 
-  .welcome-conversation {
-    margin-top: 18px;
+  .feather-fire-logo {
+    width: 250px;
+    top: -87px;
   }
 
   .welcome-title {
@@ -878,35 +848,27 @@ select {
 
   .welcome-footer {
     flex-wrap: wrap;
-
     gap: 7px 12px;
-
     text-align: center;
-
     letter-spacing: 0.12em;
   }
 }
 
 
 /* =========================================================
-   TEMPORARY HOME PLACEHOLDER
+   TEMP HOME
    ========================================================= */
 
 .app-shell {
   min-height: 100vh;
-
   display: grid;
-
   place-items: center;
-
   padding: 32px;
-
   background: #0d0c0b;
 }
 
 .welcome-card {
   width: min(760px, 100%);
-
   padding: 50px;
 
   border:
@@ -923,11 +885,8 @@ select {
 
 .eyebrow {
   color: #d08b45;
-
   font-weight: 800;
-
   letter-spacing: 0.15em;
-
   text-transform: uppercase;
 }
 
@@ -937,20 +896,14 @@ select {
 
 .mission {
   margin-top: 20px;
-
   color: #bdb4a6;
-
   line-height: 1.7;
 }
 
 .text-link {
   display: inline-block;
-
   margin-top: 30px;
-
   color: #e28a48;
-
   font-weight: 800;
-
   text-decoration: none;
 }

@@ -1,13 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 
 import featherFireLogo from '../assets/feather-fire-logo.png'
-import frankie from '../assets/frankie/frankie-main.png'
+import frankie from '../assets/frankie.png'
 
 function WelcomePage() {
   const navigate = useNavigate()
 
   return (
-    <main className="welcome-page">
+    <main className="frankie-welcome">
+      <div className="welcome-ember-glow welcome-ember-glow-left" />
+      <div className="welcome-ember-glow welcome-ember-glow-right" />
+
       <div className="floating-embers" aria-hidden="true">
         <span />
         <span />
@@ -20,11 +23,13 @@ function WelcomePage() {
 
       <section className="welcome-stage">
         <div className="welcome-content">
-          <img
-            className="feather-fire-logo"
-            src={featherFireLogo}
-            alt="Feather & Fire"
-          />
+          <div className="logo-crop">
+            <img
+              className="feather-fire-logo"
+              src={featherFireLogo}
+              alt="Feather & Fire"
+            />
+          </div>
 
           <div className="welcome-conversation">
             <h1 className="welcome-title">
@@ -71,9 +76,7 @@ function WelcomePage() {
 
         <div className="frankie-stage" aria-label="Frankie">
           <div className="frankie-aura" aria-hidden="true" />
-
           <div className="frankie-floor-glow" aria-hidden="true" />
-
           <div className="frankie-contact-glow" aria-hidden="true" />
 
           <img
