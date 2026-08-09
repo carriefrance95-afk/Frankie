@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
+import frankieMain from '../assets/frankie/frankie-main.png'
+import frankieConversation from '../assets/frankie/frankie-conversation.png'
+
 type ChatMessage = {
   id: number
   role: 'frankie' | 'user'
@@ -51,11 +54,6 @@ function HomePage() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
 
-  /*
-   * Always start the Frankie workspace at the top.
-   * This prevents the scroll position from the Welcome page
-   * from carrying over to /home.
-   */
   useEffect(() => {
     window.scrollTo({
       top: 0,
@@ -200,7 +198,13 @@ function HomePage() {
 
       <aside className="frankie-sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-mark">F</div>
+          <div className="sidebar-frankie-wrap">
+            <img
+              className="sidebar-frankie-image"
+              src={frankieMain}
+              alt="Frankie"
+            />
+          </div>
 
           <div>
             <strong>Frankie</strong>
@@ -290,7 +294,12 @@ function HomePage() {
                   className={`message-row ${chatMessage.role}`}
                 >
                   {chatMessage.role === 'frankie' && (
-                    <div className="frankie-avatar">F</div>
+                    <div className="frankie-avatar">
+                      <img
+                        src={frankieConversation}
+                        alt="Frankie"
+                      />
+                    </div>
                   )}
 
                   <div
