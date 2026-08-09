@@ -51,14 +51,12 @@ type ExtractedBusiness = {
 
 type OnboardingApiResponse = {
   reply?: string
-
   extracted?: {
     preferredName?: string | null
     businesses?: ExtractedBusiness[]
     primaryBusinessName?: string | null
     currentPriority?: string | null
   }
-
   onboardingComplete?: boolean
   error?: string
 }
@@ -69,7 +67,6 @@ type ProfileRow = {
   onboarding_started_at: string | null
   onboarding_completed_at: string | null
   onboarding_step: string | null
-
   onboarding_data: {
     primaryBusinessName?: string | null
     currentPriority?: string | null
@@ -110,27 +107,21 @@ type SpeechRecognitionLike = {
   lang: string
   start: () => void
   stop: () => void
-
   onresult:
     | ((event: SpeechRecognitionEventLike) => void)
     | null
-
   onend: (() => void) | null
   onerror: (() => void) | null
 }
 
 const createMessageId = () =>
   Date.now() +
-  Math.floor(
-    Math.random() * 10000,
-  )
+  Math.floor(Math.random() * 10000)
 
 function normalizeText(
   value: string | null | undefined,
 ) {
-  return value
-    ?.trim()
-    .toLowerCase() ?? ''
+  return value?.trim().toLowerCase() ?? ''
 }
 
 function mergeBusinesses(
@@ -139,10 +130,7 @@ function mergeBusinesses(
 ): BusinessContext[] {
   const merged = [...current]
 
-  for (
-    const incomingBusiness
-    of incoming
-  ) {
+  for (const incomingBusiness of incoming) {
     const cleanName =
       incomingBusiness.name?.trim()
 
@@ -153,12 +141,8 @@ function mergeBusinesses(
     const existingIndex =
       merged.findIndex(
         (business) =>
-          normalizeText(
-            business.name,
-          ) ===
-          normalizeText(
-            cleanName,
-          ),
+          normalizeText(business.name) ===
+          normalizeText(cleanName),
       )
 
     if (existingIndex >= 0) {
@@ -167,12 +151,10 @@ function mergeBusinesses(
 
       merged[existingIndex] = {
         ...existing,
-
         businessType:
           incomingBusiness.businessType ??
           existing.businessType ??
           null,
-
         description:
           incomingBusiness.description ??
           existing.description ??
@@ -184,11 +166,9 @@ function mergeBusinesses(
 
     merged.push({
       name: cleanName,
-
       businessType:
         incomingBusiness.businessType ??
         null,
-
       description:
         incomingBusiness.description ??
         null,
@@ -201,29 +181,15 @@ function mergeBusinesses(
 function mapMemoryRows(
   rows: FrankieMemoryRow[],
 ): FrankieMemory[] {
-  return rows.map(
-    (memory) => ({
-      id: memory.id,
-
-      businessId:
-        memory.business_id,
-
-      memoryType:
-        memory.memory_type,
-
-      title:
-        memory.title,
-
-      content:
-        memory.content,
-
-      importance:
-        memory.importance,
-
-      source:
-        memory.source,
-    }),
-  )
+  return rows.map((memory) => ({
+    id: memory.id,
+    businessId: memory.business_id,
+    memoryType: memory.memory_type,
+    title: memory.title,
+    content: memory.content,
+    importance: memory.importance,
+    source: memory.source,
+  }))
 }
 
 function OnboardingPage() {
@@ -248,14 +214,9 @@ function OnboardingPage() {
     useState<OnboardingContext>({
       preferredName: null,
       timezone: null,
-
       businesses: [],
-
-      primaryBusinessName:
-        null,
-
+      primaryBusinessName: null,
       currentPriority: null,
-
       memories: [],
     })
 
@@ -263,9 +224,7 @@ function OnboardingPage() {
     userId,
     setUserId,
   ] =
-    useState<string | null>(
-      null,
-    )
+    useState<string | null>(null)
 
   const [
     isLoading,
@@ -307,6 +266,11 @@ function OnboardingPage() {
       HTMLDivElement | null
     >(null)
 
+  const messageInputRef =
+    useRef<
+      HTMLTextAreaElement | null
+    >(null)
+
   useEffect(() => {
     conversationEndRef.current
       ?.scrollIntoView({
@@ -316,6 +280,30 @@ function OnboardingPage() {
   }, [
     messages,
     isFrankieThinking,
+  ])
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      isFrankieThinking ||
+      isComplete
+    ) {
+      return
+    }
+
+    const focusTimer =
+      window.setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 50)
+
+    return () => {
+      window.clearTimeout(focusTimer)
+    }
+  }, [
+    messages,
+    isLoading,
+    isFrankieThinking,
+    isComplete,
   ])
 
   useEffect(() => {
@@ -333,39 +321,25 @@ function OnboardingPage() {
         data,
         error,
       } = await supabase
-        .from(
-          'frankie_memories',
-        )
-        .select(
-          `
-            id,
-            business_id,
-            memory_type,
-            title,
-            content,
-            importance,
-            source
-          `,
-        )
-        .eq(
-          'owner_id',
-          ownerId,
-        )
-        .eq(
-          'is_active',
-          true,
-        )
+        .from('frankie_memories')
+        .select(`
+          id,
+          business_id,
+          memory_type,
+          title,
+          content,
+          importance,
+          source
+        `)
+        .eq('owner_id', ownerId)
+        .eq('is_active', true)
         .order(
           'importance',
-          {
-            ascending: false,
-          },
+          { ascending: false },
         )
         .order(
           'updated_at',
-          {
-            ascending: false,
-          },
+          { ascending: false },
         )
 
       if (error) {
@@ -389,19 +363,13 @@ function OnboardingPage() {
     const initializeOnboarding =
       async () => {
         setIsLoading(true)
-
         setErrorMessage('')
 
         const {
-          data: {
-            user,
-          },
-          error:
-            userError,
+          data: { user },
+          error: userError,
         } =
-          await supabase
-            .auth
-            .getUser()
+          await supabase.auth.getUser()
 
         if (!isMounted) {
           return
@@ -413,52 +381,36 @@ function OnboardingPage() {
         ) {
           navigate(
             '/signin',
-            {
-              replace:
-                true,
-            },
+            { replace: true },
           )
 
           return
         }
 
-        setUserId(
-          user.id,
-        )
+        setUserId(user.id)
 
         const {
-          data:
-            profileData,
-          error:
-            profileError,
+          data: profileData,
+          error: profileError,
         } =
           await supabase
-            .from(
-              'profiles',
-            )
-            .select(
-              `
-                preferred_name,
-                timezone,
-                onboarding_started_at,
-                onboarding_completed_at,
-                onboarding_step,
-                onboarding_data
-              `,
-            )
-            .eq(
-              'id',
-              user.id,
-            )
+            .from('profiles')
+            .select(`
+              preferred_name,
+              timezone,
+              onboarding_started_at,
+              onboarding_completed_at,
+              onboarding_step,
+              onboarding_data
+            `)
+            .eq('id', user.id)
             .maybeSingle()
 
         if (!isMounted) {
           return
         }
 
-        if (
-          profileError
-        ) {
+        if (profileError) {
           console.error(
             'Frankie onboarding profile error:',
             profileError,
@@ -467,10 +419,7 @@ function OnboardingPage() {
           setErrorMessage(
             'I had trouble opening your profile. Refresh and try again.',
           )
-
-          setIsLoading(
-            false,
-          )
+          setIsLoading(false)
 
           return
         }
@@ -481,53 +430,39 @@ function OnboardingPage() {
         ) {
           navigate(
             '/home',
-            {
-              replace:
-                true,
-            },
+            { replace: true },
           )
 
           return
         }
 
         const {
-          data:
-            businessData,
-          error:
-            businessError,
+          data: businessData,
+          error: businessError,
         } =
           await supabase
-            .from(
-              'businesses',
-            )
-            .select(
-              `
-                id,
-                name,
-                business_type,
-                description,
-                is_primary
-              `,
-            )
+            .from('businesses')
+            .select(`
+              id,
+              name,
+              business_type,
+              description,
+              is_primary
+            `)
             .eq(
               'owner_id',
               user.id,
             )
             .order(
               'created_at',
-              {
-                ascending:
-                  true,
-              },
+              { ascending: true },
             )
 
         if (!isMounted) {
           return
         }
 
-        if (
-          businessError
-        ) {
+        if (businessError) {
           console.error(
             'Frankie onboarding businesses error:',
             businessError,
@@ -535,9 +470,7 @@ function OnboardingPage() {
         }
 
         const memories =
-          await loadMemories(
-            user.id,
-          )
+          await loadMemories(user.id)
 
         if (!isMounted) {
           return
@@ -554,32 +487,20 @@ function OnboardingPage() {
 
         const businesses =
           businessRows.map(
-            (
-              business,
-            ) => ({
-              id:
-                business.id,
-
-              name:
-                business.name,
-
+            (business) => ({
+              id: business.id,
+              name: business.name,
               businessType:
-                business
-                  .business_type,
-
+                business.business_type,
               description:
-                business
-                  .description,
+                business.description,
             }),
           )
 
         const primaryBusiness =
           businessRows.find(
-            (
-              business,
-            ) =>
-              business
-                .is_primary,
+            (business) =>
+              business.is_primary,
           )
 
         const detectedTimezone =
@@ -596,9 +517,7 @@ function OnboardingPage() {
 
         const activePriorityMemory =
           memories.find(
-            (
-              memory,
-            ) =>
+            (memory) =>
               memory.memoryType ===
               'current_priority',
           )
@@ -610,34 +529,27 @@ function OnboardingPage() {
               profile
                 ?.preferred_name ??
               null,
-
             timezone:
               profile
                 ?.timezone ??
               detectedTimezone,
-
             businesses,
-
             primaryBusinessName:
               existingData
                 .primaryBusinessName ??
               primaryBusiness
                 ?.name ??
               null,
-
             currentPriority:
               existingData
                 .currentPriority ??
               activePriorityMemory
                 ?.content ??
               null,
-
             memories,
           }
 
-        setContext(
-          initialContext,
-        )
+        setContext(initialContext)
 
         const now =
           new Date()
@@ -649,9 +561,7 @@ function OnboardingPage() {
             unknown
           > = {
           timezone:
-            initialContext
-              .timezone,
-
+            initialContext.timezone,
           onboarding_step:
             profile
               ?.onboarding_step &&
@@ -673,36 +583,22 @@ function OnboardingPage() {
         }
 
         const {
-          error:
-            updateError,
+          error: updateError,
         } =
           await supabase
-            .from(
-              'profiles',
-            )
+            .from('profiles')
             .update(
               profileUpdates,
             )
-            .eq(
-              'id',
-              user.id,
-            )
+            .eq('id', user.id)
 
-        if (
-          updateError
-        ) {
+        if (updateError) {
           console.error(
             'Frankie onboarding start update error:',
             updateError,
           )
         }
 
-        /*
-         * Frankie now receives the user's
-         * existing profile, businesses and
-         * active memories before saying
-         * anything.
-         */
         const openingResponse =
           await requestFrankie(
             [],
@@ -713,16 +609,11 @@ function OnboardingPage() {
           return
         }
 
-        if (
-          !openingResponse
-        ) {
+        if (!openingResponse) {
           setErrorMessage(
             'I hit a connection problem getting our conversation started. Try refreshing.',
           )
-
-          setIsLoading(
-            false,
-          )
+          setIsLoading(false)
 
           return
         }
@@ -731,13 +622,9 @@ function OnboardingPage() {
           {
             id:
               createMessageId(),
-
-            role:
-              'frankie',
-
+            role: 'frankie',
             text:
-              openingResponse
-                .reply,
+              openingResponse.reply,
           },
         ])
 
@@ -745,14 +632,10 @@ function OnboardingPage() {
           openingResponse
             .onboardingComplete
         ) {
-          setIsComplete(
-            true,
-          )
+          setIsComplete(true)
         }
 
-        setIsLoading(
-          false,
-        )
+        setIsLoading(false)
       }
 
     void initializeOnboarding()
@@ -766,19 +649,16 @@ function OnboardingPage() {
     async (
       conversation:
         ChatMessage[],
-
       knownContext:
         OnboardingContext,
     ): Promise<{
       reply: string
-
       extracted:
         NonNullable<
           OnboardingApiResponse[
             'extracted'
           ]
         >
-
       onboardingComplete:
         boolean
     } | null> => {
@@ -787,107 +667,88 @@ function OnboardingPage() {
           await fetch(
             '/api/onboarding',
             {
-              method:
-                'POST',
-
+              method: 'POST',
               headers: {
                 'Content-Type':
                   'application/json',
               },
-
               body:
-                JSON.stringify(
-                  {
-                    messages:
-                      conversation.map(
-                        (
-                          chatMessage,
-                        ) => ({
-                          role:
-                            chatMessage
-                              .role ===
-                            'frankie'
-                              ? 'assistant'
-                              : 'user',
-
-                          content:
-                            chatMessage
-                              .text,
-                        }),
-                      ),
-
-                    knownContext:
-                      {
-                        preferredName:
-                          knownContext
-                            .preferredName,
-
-                        timezone:
-                          knownContext
-                            .timezone,
-
-                        businesses:
-                          knownContext
-                            .businesses
-                            .map(
-                              (
-                                business,
-                              ) => ({
-                                name:
-                                  business
-                                    .name,
-
-                                businessType:
-                                  business
-                                    .businessType ??
-                                  null,
-
-                                description:
-                                  business
-                                    .description ??
-                                  null,
-                              }),
-                            ),
-
-                        primaryBusinessName:
-                          knownContext
-                            .primaryBusinessName,
-
-                        currentPriority:
-                          knownContext
-                            .currentPriority,
-
-                        memories:
-                          knownContext
-                            .memories
-                            .map(
-                              (
-                                memory,
-                              ) => ({
-                                businessId:
-                                  memory
-                                    .businessId,
-
-                                memoryType:
-                                  memory
-                                    .memoryType,
-
-                                title:
-                                  memory
-                                    .title,
-
-                                content:
-                                  memory
-                                    .content,
-
-                                importance:
-                                  memory
-                                    .importance,
-                              }),
-                            ),
-                      },
+                JSON.stringify({
+                  messages:
+                    conversation.map(
+                      (
+                        chatMessage,
+                      ) => ({
+                        role:
+                          chatMessage
+                            .role ===
+                          'frankie'
+                            ? 'assistant'
+                            : 'user',
+                        content:
+                          chatMessage
+                            .text,
+                      }),
+                    ),
+                  knownContext: {
+                    preferredName:
+                      knownContext
+                        .preferredName,
+                    timezone:
+                      knownContext
+                        .timezone,
+                    businesses:
+                      knownContext
+                        .businesses
+                        .map(
+                          (
+                            business,
+                          ) => ({
+                            name:
+                              business
+                                .name,
+                            businessType:
+                              business
+                                .businessType ??
+                              null,
+                            description:
+                              business
+                                .description ??
+                              null,
+                          }),
+                        ),
+                    primaryBusinessName:
+                      knownContext
+                        .primaryBusinessName,
+                    currentPriority:
+                      knownContext
+                        .currentPriority,
+                    memories:
+                      knownContext
+                        .memories
+                        .map(
+                          (
+                            memory,
+                          ) => ({
+                            businessId:
+                              memory
+                                .businessId,
+                            memoryType:
+                              memory
+                                .memoryType,
+                            title:
+                              memory
+                                .title,
+                            content:
+                              memory
+                                .content,
+                            importance:
+                              memory
+                                .importance,
+                          }),
+                        ),
                   },
-                ),
+                }),
             },
           )
 
@@ -895,9 +756,7 @@ function OnboardingPage() {
           (await response
             .json()) as OnboardingApiResponse
 
-        if (
-          !response.ok
-        ) {
+        if (!response.ok) {
           console.error(
             'Frankie onboarding API error:',
             data,
@@ -907,11 +766,9 @@ function OnboardingPage() {
         }
 
         const reply =
-          typeof data
-            .reply ===
+          typeof data.reply ===
           'string'
-            ? data.reply
-                .trim()
+            ? data.reply.trim()
             : ''
 
         if (!reply) {
@@ -920,19 +777,14 @@ function OnboardingPage() {
 
         return {
           reply,
-
           extracted:
-            data.extracted ??
-            {},
-
+            data.extracted ?? {},
           onboardingComplete:
             data
               .onboardingComplete ===
             true,
         }
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           'Frankie onboarding request failed:',
           error,
@@ -945,42 +797,32 @@ function OnboardingPage() {
   const saveBusinesses =
     async (
       ownerId: string,
-
       businesses:
         BusinessContext[],
-
       primaryBusinessName:
         string | null,
     ): Promise<
       BusinessContext[]
     > => {
       const {
-        data:
-          existingRows,
-        error:
-          existingError,
+        data: existingRows,
+        error: existingError,
       } =
         await supabase
-          .from(
-            'businesses',
-          )
-          .select(
-            `
-              id,
-              name,
-              business_type,
-              description,
-              is_primary
-            `,
-          )
+          .from('businesses')
+          .select(`
+            id,
+            name,
+            business_type,
+            description,
+            is_primary
+          `)
           .eq(
             'owner_id',
             ownerId,
           )
 
-      if (
-        existingError
-      ) {
+      if (existingError) {
         console.error(
           'Frankie business lookup error:',
           existingError,
@@ -993,26 +835,17 @@ function OnboardingPage() {
         (existingRows ??
           []) as BusinessRow[]
 
-      for (
-        const business
-        of businesses
-      ) {
+      for (const business of businesses) {
         const cleanName =
-          business
-            .name
-            .trim()
+          business.name.trim()
 
-        if (
-          !cleanName
-        ) {
+        if (!cleanName) {
           continue
         }
 
         const matchingBusiness =
           existing.find(
-            (
-              row,
-            ) =>
+            (row) =>
               normalizeText(
                 row.name,
               ) ===
@@ -1031,49 +864,37 @@ function OnboardingPage() {
               )
             : false
 
-        if (
-          matchingBusiness
-        ) {
+        if (matchingBusiness) {
           const {
-            error:
-              updateError,
+            error: updateError,
           } =
             await supabase
-              .from(
-                'businesses',
-              )
+              .from('businesses')
               .update({
-                name:
-                  cleanName,
-
+                name: cleanName,
                 business_type:
                   business
                     .businessType ??
                   matchingBusiness
                     .business_type,
-
                 description:
                   business
                     .description ??
                   matchingBusiness
                     .description,
-
                 is_primary:
                   isPrimary,
               })
               .eq(
                 'id',
-                matchingBusiness
-                  .id,
+                matchingBusiness.id,
               )
               .eq(
                 'owner_id',
                 ownerId,
               )
 
-          if (
-            updateError
-          ) {
+          if (updateError) {
             throw updateError
           }
 
@@ -1081,74 +902,55 @@ function OnboardingPage() {
         }
 
         const {
-          error:
-            insertError,
+          error: insertError,
         } =
           await supabase
-            .from(
-              'businesses',
-            )
+            .from('businesses')
             .insert({
               owner_id:
                 ownerId,
-
               name:
                 cleanName,
-
               business_type:
                 business
                   .businessType ??
                 null,
-
               description:
                 business
                   .description ??
                 null,
-
               status:
                 'active',
-
               is_primary:
                 isPrimary,
             })
 
-        if (
-          insertError
-        ) {
+        if (insertError) {
           throw insertError
         }
       }
 
-      if (
-        primaryBusinessName
-      ) {
+      if (primaryBusinessName) {
         const {
           data:
             refreshedBusinesses,
-          error:
-            refreshError,
+          error: refreshError,
         } =
           await supabase
-            .from(
-              'businesses',
-            )
-            .select(
-              `
-                id,
-                name,
-                business_type,
-                description,
-                is_primary
-              `,
-            )
+            .from('businesses')
+            .select(`
+              id,
+              name,
+              business_type,
+              description,
+              is_primary
+            `)
             .eq(
               'owner_id',
               ownerId,
             )
 
-        if (
-          refreshError
-        ) {
+        if (refreshError) {
           throw refreshError
         }
 
@@ -1166,13 +968,10 @@ function OnboardingPage() {
             )
 
           const {
-            error:
-              primaryError,
+            error: primaryError,
           } =
             await supabase
-              .from(
-                'businesses',
-              )
+              .from('businesses')
               .update({
                 is_primary:
                   shouldBePrimary,
@@ -1186,89 +985,60 @@ function OnboardingPage() {
                 ownerId,
               )
 
-          if (
-            primaryError
-          ) {
+          if (primaryError) {
             throw primaryError
           }
         }
       }
 
       const {
-        data:
-          finalBusinessRows,
+        data: finalBusinessRows,
         error:
           finalBusinessError,
       } =
         await supabase
-          .from(
-            'businesses',
-          )
-          .select(
-            `
-              id,
-              name,
-              business_type,
-              description,
-              is_primary
-            `,
-          )
+          .from('businesses')
+          .select(`
+            id,
+            name,
+            business_type,
+            description,
+            is_primary
+          `)
           .eq(
             'owner_id',
             ownerId,
           )
           .order(
             'created_at',
-            {
-              ascending:
-                true,
-            },
+            { ascending: true },
           )
 
-      if (
-        finalBusinessError
-      ) {
+      if (finalBusinessError) {
         throw finalBusinessError
       }
 
       return (
         (finalBusinessRows ??
           []) as BusinessRow[]
-      ).map(
-        (
-          business,
-        ) => ({
-          id:
-            business.id,
-
-          name:
-            business.name,
-
-          businessType:
-            business
-              .business_type,
-
-          description:
-            business
-              .description,
-        }),
-      )
+      ).map((business) => ({
+        id: business.id,
+        name: business.name,
+        businessType:
+          business.business_type,
+        description:
+          business.description,
+      }))
     }
 
   const saveBusinessMemories =
     async (
       ownerId: string,
-
       businesses:
         BusinessContext[],
     ) => {
-      for (
-        const business
-        of businesses
-      ) {
-        if (
-          !business.id
-        ) {
+      for (const business of businesses) {
+        if (!business.id) {
           continue
         }
 
@@ -1297,10 +1067,8 @@ function OnboardingPage() {
             : `${business.name} is a ${businessType} business.`
 
         const {
-          data:
-            existingMemory,
-          error:
-            lookupError,
+          data: existingMemory,
+          error: lookupError,
         } =
           await supabase
             .from(
@@ -1331,9 +1099,7 @@ function OnboardingPage() {
             )
             .maybeSingle()
 
-        if (
-          lookupError
-        ) {
+        if (lookupError) {
           console.error(
             'Frankie business memory lookup error:',
             lookupError,
@@ -1342,9 +1108,7 @@ function OnboardingPage() {
           continue
         }
 
-        if (
-          existingMemory
-        ) {
+        if (existingMemory) {
           if (
             normalizeText(
               existingMemory
@@ -1358,8 +1122,7 @@ function OnboardingPage() {
           }
 
           const {
-            error:
-              updateError,
+            error: updateError,
           } =
             await supabase
               .from(
@@ -1368,29 +1131,21 @@ function OnboardingPage() {
               .update({
                 content:
                   memoryContent,
-
-                importance:
-                  4,
-
+                importance: 4,
                 source:
                   'onboarding',
-
-                is_active:
-                  true,
+                is_active: true,
               })
               .eq(
                 'id',
-                existingMemory
-                  .id,
+                existingMemory.id,
               )
               .eq(
                 'owner_id',
                 ownerId,
               )
 
-          if (
-            updateError
-          ) {
+          if (updateError) {
             console.error(
               'Frankie business memory update error:',
               updateError,
@@ -1401,8 +1156,7 @@ function OnboardingPage() {
         }
 
         const {
-          error:
-            insertError,
+          error: insertError,
         } =
           await supabase
             .from(
@@ -1411,32 +1165,21 @@ function OnboardingPage() {
             .insert({
               owner_id:
                 ownerId,
-
               business_id:
                 business.id,
-
               memory_type:
                 'business_fact',
-
               title:
                 'Business overview',
-
               content:
                 memoryContent,
-
-              importance:
-                4,
-
-              is_active:
-                true,
-
+              importance: 4,
+              is_active: true,
               source:
                 'onboarding',
             })
 
-        if (
-          insertError
-        ) {
+        if (insertError) {
           console.error(
             'Frankie business memory insert error:',
             insertError,
@@ -1448,25 +1191,19 @@ function OnboardingPage() {
   const saveCurrentPriorityMemory =
     async (
       ownerId: string,
-
       priority:
         string | null,
-
       businesses:
         BusinessContext[],
-
       primaryBusinessName:
         string | null,
-
       previousPriority:
         string | null,
     ) => {
       const cleanPriority =
         priority?.trim()
 
-      if (
-        !cleanPriority
-      ) {
+      if (!cleanPriority) {
         return
       }
 
@@ -1484,9 +1221,7 @@ function OnboardingPage() {
       const primaryBusiness =
         primaryBusinessName
           ? businesses.find(
-              (
-                business,
-              ) =>
+              (business) =>
                 normalizeText(
                   business.name,
                 ) ===
@@ -1496,11 +1231,6 @@ function OnboardingPage() {
             )
           : undefined
 
-      /*
-       * A current priority is temporary.
-       * Retire the old active priority instead
-       * of deleting history.
-       */
       const {
         error:
           deactivateError,
@@ -1510,8 +1240,7 @@ function OnboardingPage() {
             'frankie_memories',
           )
           .update({
-            is_active:
-              false,
+            is_active: false,
           })
           .eq(
             'owner_id',
@@ -1526,9 +1255,7 @@ function OnboardingPage() {
             true,
           )
 
-      if (
-        deactivateError
-      ) {
+      if (deactivateError) {
         console.error(
           'Frankie priority memory retirement error:',
           deactivateError,
@@ -1538,8 +1265,7 @@ function OnboardingPage() {
       }
 
       const {
-        error:
-          insertError,
+        error: insertError,
       } =
         await supabase
           .from(
@@ -1548,34 +1274,23 @@ function OnboardingPage() {
           .insert({
             owner_id:
               ownerId,
-
             business_id:
               primaryBusiness
                 ?.id ??
               null,
-
             memory_type:
               'current_priority',
-
             title:
               'Current priority',
-
             content:
               cleanPriority,
-
-            importance:
-              5,
-
-            is_active:
-              true,
-
+            importance: 5,
+            is_active: true,
             source:
               'onboarding',
           })
 
-      if (
-        insertError
-      ) {
+      if (insertError) {
         console.error(
           'Frankie priority memory insert error:',
           insertError,
@@ -1587,15 +1302,12 @@ function OnboardingPage() {
     async (
       nextContext:
         OnboardingContext,
-
       complete:
         boolean,
     ): Promise<
       OnboardingContext
     > => {
-      if (
-        !userId
-      ) {
+      if (!userId) {
         throw new Error(
           'No authenticated user.',
         )
@@ -1604,10 +1316,7 @@ function OnboardingPage() {
       const persistedBusinesses =
         await saveBusinesses(
           userId,
-
-          nextContext
-            .businesses,
-
+          nextContext.businesses,
           nextContext
             .primaryBusinessName,
         )
@@ -1621,59 +1330,40 @@ function OnboardingPage() {
           profileUpdateError,
       } =
         await supabase
-          .from(
-            'profiles',
-          )
+          .from('profiles')
           .update({
             preferred_name:
               nextContext
                 .preferredName,
-
             display_name:
               nextContext
                 .preferredName,
-
             timezone:
               nextContext
                 .timezone,
-
             onboarding_step:
               complete
                 ? 'completed'
                 : 'conversation',
-
             onboarding_completed_at:
               complete
                 ? now
                 : null,
-
-            onboarding_data:
-              {
-                primaryBusinessName:
-                  nextContext
-                    .primaryBusinessName,
-
-                currentPriority:
-                  nextContext
-                    .currentPriority,
-              },
+            onboarding_data: {
+              primaryBusinessName:
+                nextContext
+                  .primaryBusinessName,
+              currentPriority:
+                nextContext
+                  .currentPriority,
+            },
           })
-          .eq(
-            'id',
-            userId,
-          )
+          .eq('id', userId)
 
-      if (
-        profileUpdateError
-      ) {
+      if (profileUpdateError) {
         throw profileUpdateError
       }
 
-      /*
-       * Memory failures should be logged,
-       * but they should not make the owner
-       * repeat an onboarding answer.
-       */
       try {
         await saveBusinessMemories(
           userId,
@@ -1682,21 +1372,15 @@ function OnboardingPage() {
 
         await saveCurrentPriorityMemory(
           userId,
-
           nextContext
             .currentPriority,
-
           persistedBusinesses,
-
           nextContext
             .primaryBusinessName,
-
           context
             .currentPriority,
         )
-      } catch (
-        memoryError
-      ) {
+      } catch (memoryError) {
         console.error(
           'Frankie onboarding memory save error:',
           memoryError,
@@ -1710,10 +1394,8 @@ function OnboardingPage() {
 
       return {
         ...nextContext,
-
         businesses:
           persistedBusinesses,
-
         memories:
           refreshedMemories,
       }
@@ -1738,10 +1420,7 @@ function OnboardingPage() {
         ChatMessage = {
         id:
           createMessageId(),
-
-        role:
-          'user',
-
+        role: 'user',
         text:
           trimmedMessage,
       }
@@ -1755,12 +1434,8 @@ function OnboardingPage() {
       setMessages(
         conversationWithUser,
       )
-
       setMessage('')
-
-      setIsFrankieThinking(
-        true,
-      )
+      setIsFrankieThinking(true)
 
       const response =
         await requestFrankie(
@@ -1768,16 +1443,11 @@ function OnboardingPage() {
           context,
         )
 
-      if (
-        !response
-      ) {
+      if (!response) {
         setErrorMessage(
           'I hit a connection problem. Your answers are still here — try sending that again.',
         )
-
-        setIsFrankieThinking(
-          false,
-        )
+        setIsFrankieThinking(false)
 
         return
       }
@@ -1788,13 +1458,10 @@ function OnboardingPage() {
       const nextBusinesses =
         mergeBusinesses(
           context.businesses,
-
           Array.isArray(
-            extracted
-              .businesses,
+            extracted.businesses,
           )
-            ? extracted
-                .businesses
+            ? extracted.businesses
             : [],
         )
 
@@ -1806,26 +1473,20 @@ function OnboardingPage() {
               .preferredName ??
             context
               .preferredName,
-
           timezone:
-            context
-              .timezone,
-
+            context.timezone,
           businesses:
             nextBusinesses,
-
           primaryBusinessName:
             extracted
               .primaryBusinessName ??
             context
               .primaryBusinessName,
-
           currentPriority:
             extracted
               .currentPriority ??
             context
               .currentPriority,
-
           memories:
             context.memories,
         }
@@ -1834,17 +1495,12 @@ function OnboardingPage() {
         const savedContext =
           await persistOnboarding(
             nextContext,
-
             response
               .onboardingComplete,
           )
 
-        setContext(
-          savedContext,
-        )
-      } catch (
-        error
-      ) {
+        setContext(savedContext)
+      } catch (error) {
         console.error(
           'Frankie onboarding save failed:',
           error,
@@ -1853,10 +1509,7 @@ function OnboardingPage() {
         setErrorMessage(
           'I understood you, but I had trouble saving that. Try again before we move on.',
         )
-
-        setIsFrankieThinking(
-          false,
-        )
+        setIsFrankieThinking(false)
 
         return
       }
@@ -1864,14 +1517,10 @@ function OnboardingPage() {
       setMessages(
         (current) => [
           ...current,
-
           {
             id:
               createMessageId(),
-
-            role:
-              'frankie',
-
+            role: 'frankie',
             text:
               response.reply,
           },
@@ -1882,27 +1531,18 @@ function OnboardingPage() {
         response
           .onboardingComplete
       ) {
-        setIsComplete(
-          true,
-        )
+        setIsComplete(true)
       }
 
-      setIsFrankieThinking(
-        false,
-      )
+      setIsFrankieThinking(false)
     }
 
   const toggleListening =
     () => {
-      if (
-        isListening
-      ) {
+      if (isListening) {
         recognitionRef.current
           ?.stop()
-
-        setIsListening(
-          false,
-        )
+        setIsListening(false)
 
         return
       }
@@ -1911,7 +1551,6 @@ function OnboardingPage() {
         window as typeof window & {
           SpeechRecognition?:
             new () => SpeechRecognitionLike
-
           webkitSpeechRecognition?:
             new () => SpeechRecognitionLike
         }
@@ -1922,9 +1561,7 @@ function OnboardingPage() {
         browserWindow
           .webkitSpeechRecognition
 
-      if (
-        !RecognitionConstructor
-      ) {
+      if (!RecognitionConstructor) {
         window.alert(
           'Voice input is not supported in this browser yet. You can still type to Frankie.',
         )
@@ -1937,17 +1574,13 @@ function OnboardingPage() {
 
       recognition.continuous =
         false
-
       recognition.interimResults =
         false
-
       recognition.lang =
         'en-US'
 
       recognition.onresult =
-        (
-          event,
-        ) => {
+        (event) => {
           const transcript =
             event.results[0][0]
               .transcript
@@ -1962,38 +1595,27 @@ function OnboardingPage() {
 
       recognition.onend =
         () => {
-          setIsListening(
-            false,
-          )
+          setIsListening(false)
         }
 
       recognition.onerror =
         () => {
-          setIsListening(
-            false,
-          )
+          setIsListening(false)
         }
 
       recognitionRef.current =
         recognition
 
-      setIsListening(
-        true,
-      )
-
+      setIsListening(true)
       recognition.start()
     }
 
-  if (
-    isLoading
-  ) {
+  if (isLoading) {
     return (
       <main className="onboarding-page onboarding-loading">
         <div className="onboarding-loading-content">
           <img
-            src={
-              frankie
-            }
+            src={frankie}
             alt="Frankie"
           />
 
@@ -2010,16 +1632,13 @@ function OnboardingPage() {
   return (
     <main className="onboarding-page">
       <div className="onboarding-glow onboarding-glow-one" />
-
       <div className="onboarding-glow onboarding-glow-two" />
 
       <header className="onboarding-header">
         <div className="onboarding-brand">
           <div className="onboarding-brand-image">
             <img
-              src={
-                frankie
-              }
+              src={frankie}
               alt="Frankie"
             />
           </div>
@@ -2037,7 +1656,6 @@ function OnboardingPage() {
 
         <div className="onboarding-progress">
           <span className="onboarding-progress-dot" />
-
           Getting acquainted
         </div>
       </header>
@@ -2061,22 +1679,16 @@ function OnboardingPage() {
         <div className="onboarding-conversation">
           <div className="onboarding-message-scroll">
             {messages.map(
-              (
-                chatMessage,
-              ) => (
+              (chatMessage) => (
                 <div
-                  key={
-                    chatMessage.id
-                  }
+                  key={chatMessage.id}
                   className={`onboarding-message-row ${chatMessage.role}`}
                 >
                   {chatMessage.role ===
                     'frankie' && (
                     <div className="onboarding-frankie-avatar">
                       <img
-                        src={
-                          frankie
-                        }
+                        src={frankie}
                         alt="Frankie"
                       />
                     </div>
@@ -2093,9 +1705,7 @@ function OnboardingPage() {
                     )}
 
                     <p>
-                      {
-                        chatMessage.text
-                      }
+                      {chatMessage.text}
                     </p>
                   </div>
                 </div>
@@ -2106,9 +1716,7 @@ function OnboardingPage() {
               <div className="onboarding-message-row frankie">
                 <div className="onboarding-frankie-avatar">
                   <img
-                    src={
-                      frankie
-                    }
+                    src={frankie}
                     alt="Frankie"
                   />
                 </div>
@@ -2120,9 +1728,7 @@ function OnboardingPage() {
 
                   <div className="thinking-dots">
                     <span />
-
                     <span />
-
                     <span />
                   </div>
                 </div>
@@ -2138,9 +1744,7 @@ function OnboardingPage() {
 
           {errorMessage && (
             <div className="onboarding-error">
-              {
-                errorMessage
-              }
+              {errorMessage}
             </div>
           )}
 
@@ -2148,30 +1752,23 @@ function OnboardingPage() {
             <>
               <form
                 className="onboarding-composer"
-
-                onSubmit={(
-                  event,
-                ) => {
+                onSubmit={(event) => {
                   event.preventDefault()
-
                   void handleSendMessage()
                 }}
               >
                 <button
                   type="button"
-
                   className={
                     isListening
                       ? 'onboarding-mic listening'
                       : 'onboarding-mic'
                   }
-
                   aria-label={
                     isListening
                       ? 'Stop listening'
                       : 'Talk to Frankie'
                   }
-
                   onClick={
                     toggleListening
                   }
@@ -2182,18 +1779,14 @@ function OnboardingPage() {
                 </button>
 
                 <textarea
-                  value={
-                    message
+                  ref={
+                    messageInputRef
                   }
-
-                  rows={
-                    1
-                  }
-
+                  value={message}
+                  rows={1}
                   disabled={
                     isFrankieThinking
                   }
-
                   placeholder={
                     isListening
                       ? 'Listening...'
@@ -2201,27 +1794,18 @@ function OnboardingPage() {
                         ? 'Frankie is thinking...'
                         : 'Talk to Frankie...'
                   }
-
-                  onChange={(
-                    event,
-                  ) =>
+                  onChange={(event) =>
                     setMessage(
-                      event
-                        .target
-                        .value,
+                      event.target.value,
                     )
                   }
-
-                  onKeyDown={(
-                    event,
-                  ) => {
+                  onKeyDown={(event) => {
                     if (
                       event.key ===
                         'Enter' &&
                       !event.shiftKey
                     ) {
                       event.preventDefault()
-
                       void handleSendMessage()
                     }
                   }}
@@ -2229,14 +1813,11 @@ function OnboardingPage() {
 
                 <button
                   type="submit"
-
                   className="onboarding-send"
-
                   disabled={
                     isFrankieThinking ||
                     !message.trim()
                   }
-
                   aria-label="Send message"
                 >
                   ↑
@@ -2250,16 +1831,11 @@ function OnboardingPage() {
           ) : (
             <button
               type="button"
-
               className="onboarding-enter-workspace"
-
               onClick={() =>
                 navigate(
                   '/home',
-                  {
-                    replace:
-                      true,
-                  },
+                  { replace: true },
                 )
               }
             >
