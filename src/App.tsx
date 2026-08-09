@@ -9,7 +9,7 @@ import {
 import AccountEntryPage from './pages/AccountEntryPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import HomePage from './pages/HomePage'
-import OnboardingPlaceholderPage from './pages/OnboardingPlaceholderPage'
+import OnboardingPage from './pages/OnboardingPage'
 import ProtectedRoute from './pages/ProtectedRoute'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
@@ -65,7 +65,7 @@ const router = createBrowserRouter([
     path: '/onboarding',
     element: (
       <ProtectedRoute>
-        <OnboardingPlaceholderPage />
+        <OnboardingPage />
       </ProtectedRoute>
     ),
   },
