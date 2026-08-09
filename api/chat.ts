@@ -11,41 +11,10 @@ type ChatRequestBody = {
   messages?: ChatMessage[]
 }
 
-type OpenAIOutputItem = {
+type OpenAIStreamEvent = {
   type?: string
-  content?: Array<{
-    type?: string
-    text?: string
-  }>
-}
-
-type OpenAIResponseBody = {
-  output?: OpenAIOutputItem[]
-}
-
-function extractReply(data: OpenAIResponseBody): string {
-  if (!Array.isArray(data.output)) {
-    return ''
-  }
-
-  const textParts: string[] = []
-
-  for (const item of data.output) {
-    if (!Array.isArray(item.content)) {
-      continue
-    }
-
-    for (const contentItem of item.content) {
-      if (
-        contentItem.type === 'output_text' &&
-        typeof contentItem.text === 'string'
-      ) {
-        textParts.push(contentItem.text)
-      }
-    }
-  }
-
-  return textParts.join('\n').trim()
+  delta?: string
+  message?: string
 }
 
 export default {
@@ -120,18 +89,24 @@ export default {
           body: JSON.stringify({
             model: 'gpt-5-mini',
 
+            reasoning: {
+              effort: 'minimal',
+            },
+
             instructions: FRANKIE_CORE_INSTRUCTIONS,
 
             input,
+
+            stream: true,
           }),
         },
       )
 
-      if (!openAIResponse.ok) {
+      if (!openAIResponse.ok || !openAIResponse.body) {
         const errorText = await openAIResponse.text()
 
         console.error(
-          'OpenAI API error:',
+          'OpenAI streaming error:',
           openAIResponse.status,
           errorText,
         )
@@ -147,30 +122,102 @@ export default {
         )
       }
 
-      const data =
-        (await openAIResponse.json()) as OpenAIResponseBody
+      const encoder = new TextEncoder()
+      const decoder = new TextDecoder()
 
-      const reply = extractReply(data)
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const reader = openAIResponse.body!.getReader()
 
-      if (!reply) {
-        console.error(
-          'OpenAI returned no readable text:',
-          JSON.stringify(data),
-        )
+          let buffer = ''
 
-        return Response.json(
-          {
-            error:
-              'Frankie received an empty response.',
-          },
-          {
-            status: 502,
-          },
-        )
-      }
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
 
-      return Response.json({
-        reply,
+              if (done) {
+                break
+              }
+
+              buffer += decoder.decode(value, {
+                stream: true,
+              })
+
+              const events = buffer.split('\n\n')
+
+              buffer = events.pop() ?? ''
+
+              for (const eventBlock of events) {
+                const lines = eventBlock.split('\n')
+
+                for (const line of lines) {
+                  if (!line.startsWith('data: ')) {
+                    continue
+                  }
+
+                  const dataString = line.slice(6).trim()
+
+                  if (
+                    !dataString ||
+                    dataString === '[DONE]'
+                  ) {
+                    continue
+                  }
+
+                  let event: OpenAIStreamEvent
+
+                  try {
+                    event = JSON.parse(dataString) as OpenAIStreamEvent
+                  } catch {
+                    continue
+                  }
+
+                  if (
+                    event.type === 'response.output_text.delta' &&
+                    typeof event.delta === 'string'
+                  ) {
+                    controller.enqueue(
+                      encoder.encode(event.delta),
+                    )
+                  }
+
+                  if (event.type === 'error') {
+                    console.error(
+                      'OpenAI stream event error:',
+                      event,
+                    )
+                  }
+                }
+              }
+            }
+
+            controller.close()
+          } catch (error) {
+            console.error(
+              'Frankie stream processing error:',
+              error,
+            )
+
+            controller.error(error)
+          } finally {
+            reader.releaseLock()
+          }
+        },
+      })
+
+      return new Response(stream, {
+        status: 200,
+
+        headers: {
+          'Content-Type':
+            'text/plain; charset=utf-8',
+
+          'Cache-Control':
+            'no-cache, no-transform',
+
+          'X-Content-Type-Options':
+            'nosniff',
+        },
       })
     } catch (error) {
       console.error('Frankie chat error:', error)

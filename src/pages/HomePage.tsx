@@ -30,14 +30,9 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null
 }
 
-type ChatApiResponse = {
-  reply?: string
-  error?: string
-}
-
 function HomePage() {
   const [message, setMessage] = useState('')
-const [voiceEnabled, setVoiceEnabled] = useState(false) 
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [showToday, setShowToday] = useState(true)
   const [isFrankieThinking, setIsFrankieThinking] = useState(false)
@@ -116,7 +111,19 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
 
     const updatedMessages = [...messages, userMessage]
 
-    setMessages(updatedMessages)
+    const frankieMessageId = Date.now() + 1
+
+    const streamingFrankieMessage: ChatMessage = {
+      id: frankieMessageId,
+      role: 'frankie',
+      text: '',
+    }
+
+    setMessages([
+      ...updatedMessages,
+      streamingFrankieMessage,
+    ])
+
     setMessage('')
     setIsFrankieThinking(true)
 
@@ -134,53 +141,107 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
               chatMessage.role === 'frankie'
                 ? 'assistant'
                 : 'user',
+
             content: chatMessage.text,
           })),
         }),
       })
 
-      const data =
-        (await response.json()) as ChatApiResponse
-
       if (!response.ok) {
+        const errorText = await response.text()
+
+        console.error(
+          'Frankie API error:',
+          response.status,
+          errorText,
+        )
+
         throw new Error(
-          data.error || 'Frankie could not respond.',
+          'Frankie could not respond.',
         )
       }
 
-      const frankieReply = data.reply?.trim()
+      if (!response.body) {
+        throw new Error(
+          'Frankie returned no response stream.',
+        )
+      }
 
-      if (!frankieReply) {
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      let fullReply = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          break
+        }
+
+        const chunk = decoder.decode(value, {
+          stream: true,
+        })
+
+        if (!chunk) {
+          continue
+        }
+
+        fullReply += chunk
+
+        setMessages((current) =>
+          current.map((chatMessage) =>
+            chatMessage.id === frankieMessageId
+              ? {
+                  ...chatMessage,
+                  text: fullReply,
+                }
+              : chatMessage,
+          ),
+        )
+      }
+
+      fullReply += decoder.decode()
+
+      const finalReply = fullReply.trim()
+
+      if (!finalReply) {
         throw new Error(
           'Frankie returned an empty response.',
         )
       }
 
-      const reply: ChatMessage = {
-        id: Date.now() + 1,
-        role: 'frankie',
-        text: frankieReply,
-      }
-
-      setMessages((current) => [...current, reply])
+      setMessages((current) =>
+        current.map((chatMessage) =>
+          chatMessage.id === frankieMessageId
+            ? {
+                ...chatMessage,
+                text: finalReply,
+              }
+            : chatMessage,
+        ),
+      )
 
       if (voiceEnabled) {
-        speakText(frankieReply)
+        speakText(finalReply)
       }
     } catch (error) {
-      console.error('Frankie chat request failed:', error)
+      console.error(
+        'Frankie chat request failed:',
+        error,
+      )
 
-      const fallbackReply: ChatMessage = {
-        id: Date.now() + 1,
-        role: 'frankie',
-        text:
-          "I hit a connection problem on my end. Give me a second and try that again.",
-      }
-
-      setMessages((current) => [
-        ...current,
-        fallbackReply,
-      ])
+      setMessages((current) =>
+        current.map((chatMessage) =>
+          chatMessage.id === frankieMessageId
+            ? {
+                ...chatMessage,
+                text:
+                  "I hit a connection problem on my end. Give me a second and try that again.",
+              }
+            : chatMessage,
+        ),
+      )
     } finally {
       setIsFrankieThinking(false)
     }
@@ -206,6 +267,7 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
       window.alert(
         'Voice input is not supported in this browser yet. You can still type to Frankie.',
       )
+
       return
     }
 
@@ -216,10 +278,13 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
     recognition.lang = 'en-US'
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript
+      const transcript =
+        event.results[0][0].transcript
 
       setMessage((current) =>
-        current ? `${current} ${transcript}` : transcript,
+        current
+          ? `${current} ${transcript}`
+          : transcript,
       )
     }
 
@@ -234,18 +299,43 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
     recognitionRef.current = recognition
 
     setIsListening(true)
+
     recognition.start()
   }
 
   const navigationItems = [
-    { label: 'Today', symbol: '◷' },
-    { label: 'Email', symbol: '✉' },
-    { label: 'Calendar', symbol: '▣' },
-    { label: 'Tasks', symbol: '✓' },
-    { label: 'Business Kit', symbol: '▦' },
-    { label: 'Files', symbol: '⌑' },
-    { label: 'Reports', symbol: '↗' },
-    { label: 'Connections', symbol: '⌁' },
+    {
+      label: 'Today',
+      symbol: '◷',
+    },
+    {
+      label: 'Email',
+      symbol: '✉',
+    },
+    {
+      label: 'Calendar',
+      symbol: '▣',
+    },
+    {
+      label: 'Tasks',
+      symbol: '✓',
+    },
+    {
+      label: 'Business Kit',
+      symbol: '▦',
+    },
+    {
+      label: 'Files',
+      symbol: '⌑',
+    },
+    {
+      label: 'Reports',
+      symbol: '↗',
+    },
+    {
+      label: 'Connections',
+      symbol: '⌁',
+    },
   ]
 
   return (
@@ -269,7 +359,10 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
           </div>
         </div>
 
-        <nav className="frankie-nav" aria-label="Frankie workspace">
+        <nav
+          className="frankie-nav"
+          aria-label="Frankie workspace"
+        >
           {navigationItems.map((item) => (
             <button
               key={item.label}
@@ -281,12 +374,19 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
               }
               onClick={() => {
                 if (item.label === 'Today') {
-                  setShowToday((current) => !current)
+                  setShowToday(
+                    (current) => !current,
+                  )
                 }
               }}
             >
-              <span className="nav-symbol">{item.symbol}</span>
-              <span>{item.label}</span>
+              <span className="nav-symbol">
+                {item.symbol}
+              </span>
+
+              <span>
+                {item.label}
+              </span>
             </button>
           ))}
         </nav>
@@ -296,24 +396,39 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
             type="button"
             className="voice-setting"
             onClick={() => {
-              setVoiceEnabled((current) => !current)
+              setVoiceEnabled(
+                (current) => !current,
+              )
 
               if (voiceEnabled) {
                 window.speechSynthesis?.cancel()
               }
             }}
           >
-            <span>{voiceEnabled ? '◉' : '○'}</span>
+            <span>
+              {voiceEnabled ? '◉' : '○'}
+            </span>
 
             <div>
-              <strong>Frankie Voice</strong>
-              <small>{voiceEnabled ? 'On' : 'Off'}</small>
+              <strong>
+                Frankie Voice
+              </strong>
+
+              <small>
+                {voiceEnabled ? 'On' : 'Off'}
+              </small>
             </div>
           </button>
 
-          <button type="button" className="settings-button">
+          <button
+            type="button"
+            className="settings-button"
+          >
             ⚙
-            <span>Settings</span>
+
+            <span>
+              Settings
+            </span>
           </button>
         </div>
       </aside>
@@ -325,13 +440,16 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
               YOUR BUSINESS, IN ONE PLACE
             </p>
 
-            <h1>Talk to Frankie</h1>
+            <h1>
+              Talk to Frankie
+            </h1>
           </div>
 
           <div className="workspace-status">
             <span className="status-dot" />
+
             {isFrankieThinking
-              ? 'Frankie is thinking'
+              ? 'Frankie is responding'
               : 'Frankie is ready'}
           </div>
         </header>
@@ -345,7 +463,9 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
         >
           <section className="conversation-panel">
             <div className="conversation-scroll">
-              <div className="conversation-date">TODAY</div>
+              <div className="conversation-date">
+                TODAY
+              </div>
 
               {messages.map((chatMessage) => (
                 <div
@@ -366,44 +486,36 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
                   >
                     {chatMessage.role === 'frankie' && (
                       <div className="message-heading">
-                        <strong>Frankie</strong>
+                        <strong>
+                          Frankie
+                        </strong>
 
-                        <button
-                          type="button"
-                          className="speak-message"
-                          aria-label="Read Frankie response aloud"
-                          onClick={() =>
-                            speakText(chatMessage.text)
-                          }
-                        >
-                          ◖))
-                        </button>
+                        {chatMessage.text && (
+                          <button
+                            type="button"
+                            className="speak-message"
+                            aria-label="Read Frankie response aloud"
+                            onClick={() =>
+                              speakText(
+                                chatMessage.text,
+                              )
+                            }
+                          >
+                            ◖))
+                          </button>
+                        )}
                       </div>
                     )}
 
-                    <p>{chatMessage.text}</p>
+                    <p>
+                      {chatMessage.role === 'frankie' &&
+                      chatMessage.text === ''
+                        ? 'Thinking...'
+                        : chatMessage.text}
+                    </p>
                   </div>
                 </div>
               ))}
-
-              {isFrankieThinking && (
-                <div className="message-row frankie">
-                  <div className="frankie-avatar">
-                    <img
-                      src={frankieConversation}
-                      alt="Frankie"
-                    />
-                  </div>
-
-                  <div className="message-bubble frankie">
-                    <div className="message-heading">
-                      <strong>Frankie</strong>
-                    </div>
-
-                    <p>Thinking...</p>
-                  </div>
-                </div>
-              )}
 
               <div ref={conversationEndRef} />
             </div>
@@ -412,6 +524,7 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
               className="frankie-composer"
               onSubmit={(event) => {
                 event.preventDefault()
+
                 void handleSendMessage()
               }}
             >
@@ -438,7 +551,7 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
                 disabled={isFrankieThinking}
                 placeholder={
                   isFrankieThinking
-                    ? 'Frankie is thinking...'
+                    ? 'Frankie is responding...'
                     : isListening
                       ? 'Listening...'
                       : 'Ask Frankie anything...'
@@ -452,6 +565,7 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
                     !event.shiftKey
                   ) {
                     event.preventDefault()
+
                     void handleSendMessage()
                   }
                 }}
@@ -476,28 +590,42 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
             <aside className="today-drawer">
               <div className="today-heading">
                 <div>
-                  <span className="today-label">TODAY</span>
-                  <h2>Your day</h2>
+                  <span className="today-label">
+                    TODAY
+                  </span>
+
+                  <h2>
+                    Your day
+                  </h2>
                 </div>
 
                 <button
                   type="button"
                   className="close-today"
                   aria-label="Close today panel"
-                  onClick={() => setShowToday(false)}
+                  onClick={() =>
+                    setShowToday(false)
+                  }
                 >
                   ×
                 </button>
               </div>
 
               <div className="today-date">
-                <strong>Sunday</strong>
-                <span>August 9</span>
+                <strong>
+                  Sunday
+                </strong>
+
+                <span>
+                  August 9
+                </span>
               </div>
 
               <div className="today-section">
                 <div className="today-section-title">
-                  <span>Calendar</span>
+                  <span>
+                    Calendar
+                  </span>
 
                   <button type="button">
                     Open
@@ -505,23 +633,27 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
                 </div>
 
                 <div className="empty-today-state">
-                  <span className="empty-icon">◷</span>
+                  <span className="empty-icon">
+                    ◷
+                  </span>
 
                   <strong>
                     Calendar not connected yet
                   </strong>
 
                   <p>
-                    Once connected, Frankie will keep your
-                    schedule here and help you stay ahead
-                    of the day.
+                    Once connected, Frankie will
+                    keep your schedule here and
+                    help you stay ahead of the day.
                   </p>
                 </div>
               </div>
 
               <div className="today-section">
                 <div className="today-section-title">
-                  <span>Needs attention</span>
+                  <span>
+                    Needs attention
+                  </span>
                 </div>
 
                 <div className="attention-item">
@@ -533,8 +665,9 @@ const [voiceEnabled, setVoiceEnabled] = useState(false)
                     </strong>
 
                     <p>
-                      Email, calendar and your Business Kit
-                      will eventually feed Frankie from here.
+                      Email, calendar and your
+                      Business Kit will eventually
+                      feed Frankie from here.
                     </p>
                   </div>
                 </div>
