@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import frankieMain from '../assets/frankie/frankie-main.png'
 import frankieConversation from '../assets/frankie/frankie-conversation.png'
 
+import './HomeWorkspace.css'
+
 type ChatMessage = {
   id: number
   role: 'frankie' | 'user'
@@ -30,12 +32,50 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null
 }
 
+type ThemePreference = 'dark' | 'light' | 'system'
+
+type WorkspaceContext = {
+  id: string
+  name: string
+  type: 'master' | 'business'
+}
+
+const THEME_STORAGE_KEY = 'frankie-workspace-theme'
+
 function HomePage() {
   const [message, setMessage] = useState('')
   const [voiceEnabled, setVoiceEnabled] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [showToday, setShowToday] = useState(true)
   const [isFrankieThinking, setIsFrankieThinking] = useState(false)
+
+  const [themePreference, setThemePreference] =
+    useState<ThemePreference>('dark')
+
+  const [resolvedTheme, setResolvedTheme] =
+    useState<'dark' | 'light'>('dark')
+
+  const [selectedContextId, setSelectedContextId] =
+    useState('master')
+
+  /*
+   * Real business profiles will eventually come from the database.
+   * Master View always exists.
+   */
+  const workspaceContexts: WorkspaceContext[] = [
+    {
+      id: 'master',
+      name: 'Master View',
+      type: 'master',
+    },
+  ]
+
+  /*
+   * These counts are placeholders until To-Do and Parking Lot
+   * are connected to persistent storage.
+   */
+  const toDoCount: number = 0 
+  const parkingLotCount: number = 0 
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -55,6 +95,22 @@ function HomePage() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
 
+  const selectedContext =
+    workspaceContexts.find(
+      (context) => context.id === selectedContextId,
+    ) ?? workspaceContexts[0]
+
+  const today = new Date()
+
+  const dayName = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+  }).format(today)
+
+  const monthAndDay = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+  }).format(today)
+
   useEffect(() => {
     window.scrollTo({
       top: 0,
@@ -65,6 +121,52 @@ function HomePage() {
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
   }, [])
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem(
+      THEME_STORAGE_KEY,
+    ) as ThemePreference | null
+
+    if (
+      savedTheme === 'dark' ||
+      savedTheme === 'light' ||
+      savedTheme === 'system'
+    ) {
+      setThemePreference(savedTheme)
+    }
+  }, [])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      '(prefers-color-scheme: dark)',
+    )
+
+    const updateResolvedTheme = () => {
+      if (themePreference === 'system') {
+        setResolvedTheme(
+          mediaQuery.matches ? 'dark' : 'light',
+        )
+
+        return
+      }
+
+      setResolvedTheme(themePreference)
+    }
+
+    updateResolvedTheme()
+
+    mediaQuery.addEventListener(
+      'change',
+      updateResolvedTheme,
+    )
+
+    return () => {
+      mediaQuery.removeEventListener(
+        'change',
+        updateResolvedTheme,
+      )
+    }
+  }, [themePreference])
 
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({
@@ -79,6 +181,15 @@ function HomePage() {
       recognitionRef.current?.stop()
     }
   }, [])
+
+  const changeTheme = (theme: ThemePreference) => {
+    setThemePreference(theme)
+
+    window.localStorage.setItem(
+      THEME_STORAGE_KEY,
+      theme,
+    )
+  }
 
   const speakText = (text: string) => {
     if (!('speechSynthesis' in window)) {
@@ -109,7 +220,10 @@ function HomePage() {
       text: trimmedMessage,
     }
 
-    const updatedMessages = [...messages, userMessage]
+    const updatedMessages = [
+      ...messages,
+      userMessage,
+    ]
 
     const frankieMessageId = Date.now() + 1
 
@@ -136,14 +250,22 @@ function HomePage() {
         },
 
         body: JSON.stringify({
-          messages: updatedMessages.map((chatMessage) => ({
-            role:
-              chatMessage.role === 'frankie'
-                ? 'assistant'
-                : 'user',
+          messages: updatedMessages.map(
+            (chatMessage) => ({
+              role:
+                chatMessage.role === 'frankie'
+                  ? 'assistant'
+                  : 'user',
 
-            content: chatMessage.text,
-          })),
+              content: chatMessage.text,
+            }),
+          ),
+
+          workspaceContext: {
+            id: selectedContext.id,
+            name: selectedContext.name,
+            type: selectedContext.type,
+          },
         }),
       })
 
@@ -299,7 +421,6 @@ function HomePage() {
     recognitionRef.current = recognition
 
     setIsListening(true)
-
     recognition.start()
   }
 
@@ -307,39 +428,55 @@ function HomePage() {
     {
       label: 'Today',
       symbol: '◷',
+      count: null,
     },
     {
       label: 'Email',
       symbol: '✉',
+      count: null,
     },
     {
       label: 'Calendar',
       symbol: '▣',
+      count: null,
     },
     {
-      label: 'Tasks',
+      label: 'To-Do',
       symbol: '✓',
+      count: toDoCount,
+    },
+    {
+      label: 'Parking Lot',
+      symbol: '◇',
+      count: parkingLotCount,
     },
     {
       label: 'Business Kit',
       symbol: '▦',
+      count: null,
     },
     {
       label: 'Files',
       symbol: '⌑',
+      count: null,
     },
     {
       label: 'Reports',
       symbol: '↗',
+      count: null,
     },
     {
       label: 'Connections',
       symbol: '⌁',
+      count: null,
     },
   ]
 
   return (
-    <main className="frankie-home">
+    <main
+      className="frankie-home"
+      data-workspace-theme={resolvedTheme}
+    >
       <div className="home-ember home-ember-one" />
       <div className="home-ember home-ember-two" />
 
@@ -357,6 +494,42 @@ function HomePage() {
             <strong>Frankie</strong>
             <span>Feather &amp; Fire</span>
           </div>
+        </div>
+
+        <div className="workspace-context-area">
+          <span className="context-label">
+            WORKSPACE
+          </span>
+
+          <div className="context-select-wrap">
+            <span className="context-master-icon">
+              ✦
+            </span>
+
+            <select
+              className="context-select"
+              value={selectedContextId}
+              onChange={(event) =>
+                setSelectedContextId(
+                  event.target.value,
+                )
+              }
+              aria-label="Select business workspace"
+            >
+              {workspaceContexts.map((context) => (
+                <option
+                  key={context.id}
+                  value={context.id}
+                >
+                  {context.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className="context-helper">
+            All businesses, one view.
+          </p>
         </div>
 
         <nav
@@ -384,14 +557,88 @@ function HomePage() {
                 {item.symbol}
               </span>
 
-              <span>
+              <span className="nav-label">
                 {item.label}
               </span>
+
+              {typeof item.count === 'number' &&
+                item.count > 0 && (
+                  <span className="nav-count">
+                    {item.count}
+                  </span>
+                )}
             </button>
           ))}
         </nav>
 
         <div className="sidebar-bottom">
+          <div className="appearance-setting">
+            <div className="appearance-heading">
+              <span>◐</span>
+
+              <div>
+                <strong>Appearance</strong>
+                <small>
+                  {themePreference === 'system'
+                    ? 'System'
+                    : themePreference === 'light'
+                      ? 'Light'
+                      : 'Dark'}
+                </small>
+              </div>
+            </div>
+
+            <div
+              className="theme-options"
+              aria-label="Workspace appearance"
+            >
+              <button
+                type="button"
+                className={
+                  themePreference === 'dark'
+                    ? 'theme-option active'
+                    : 'theme-option'
+                }
+                onClick={() =>
+                  changeTheme('dark')
+                }
+                title="Dark"
+              >
+                ◐
+              </button>
+
+              <button
+                type="button"
+                className={
+                  themePreference === 'light'
+                    ? 'theme-option active'
+                    : 'theme-option'
+                }
+                onClick={() =>
+                  changeTheme('light')
+                }
+                title="Light"
+              >
+                ☀
+              </button>
+
+              <button
+                type="button"
+                className={
+                  themePreference === 'system'
+                    ? 'theme-option active'
+                    : 'theme-option'
+                }
+                onClick={() =>
+                  changeTheme('system')
+                }
+                title="Use system setting"
+              >
+                ◫
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             className="voice-setting"
@@ -437,7 +684,9 @@ function HomePage() {
         <header className="workspace-header">
           <div>
             <p className="workspace-kicker">
-              YOUR BUSINESS, IN ONE PLACE
+              {selectedContext.type === 'master'
+                ? 'MASTER VIEW'
+                : selectedContext.name.toUpperCase()}
             </p>
 
             <h1>
@@ -445,12 +694,18 @@ function HomePage() {
             </h1>
           </div>
 
-          <div className="workspace-status">
-            <span className="status-dot" />
+          <div className="workspace-header-right">
+            <span className="current-context-pill">
+              ✦ {selectedContext.name}
+            </span>
 
-            {isFrankieThinking
-              ? 'Frankie is responding'
-              : 'Frankie is ready'}
+            <div className="workspace-status">
+              <span className="status-dot" />
+
+              {isFrankieThinking
+                ? 'Frankie is responding'
+                : 'Frankie is ready'}
+            </div>
           </div>
         </header>
 
@@ -554,7 +809,9 @@ function HomePage() {
                     ? 'Frankie is responding...'
                     : isListening
                       ? 'Listening...'
-                      : 'Ask Frankie anything...'
+                      : selectedContext.type === 'master'
+                        ? 'Ask Frankie anything across your businesses...'
+                        : `Ask Frankie about ${selectedContext.name}...`
                 }
                 onChange={(event) =>
                   setMessage(event.target.value)
@@ -611,13 +868,17 @@ function HomePage() {
                 </button>
               </div>
 
+              <div className="today-context">
+                {selectedContext.name}
+              </div>
+
               <div className="today-date">
                 <strong>
-                  Sunday
+                  {dayName}
                 </strong>
 
                 <span>
-                  August 9
+                  {monthAndDay}
                 </span>
               </div>
 
@@ -643,11 +904,49 @@ function HomePage() {
 
                   <p>
                     Once connected, Frankie will
-                    keep your schedule here and
-                    help you stay ahead of the day.
+                    combine the calendars you
+                    authorize and keep this view
+                    current.
                   </p>
                 </div>
               </div>
+
+              <div className="today-section">
+                <div className="today-section-title">
+                  <span>
+                    To-Do
+                  </span>
+
+                  <button type="button">
+                    Open
+                  </button>
+                </div>
+
+                <div className="today-mini-empty">
+                  No active to-dos yet.
+                </div>
+              </div>
+
+              {parkingLotCount > 0 && (
+                <div className="today-section">
+                  <div className="today-section-title">
+                    <span>
+                      Parking Lot
+                    </span>
+
+                    <button type="button">
+                      Open
+                    </button>
+                  </div>
+
+                  <div className="today-mini-empty">
+                    {parkingLotCount}{' '}
+                    {parkingLotCount === 1
+                      ? 'idea parked'
+                      : 'ideas parked'}
+                  </div>
+                </div>
+              )}
 
               <div className="today-section">
                 <div className="today-section-title">
@@ -665,9 +964,9 @@ function HomePage() {
                     </strong>
 
                     <p>
-                      Email, calendar and your
-                      Business Kit will eventually
-                      feed Frankie from here.
+                      Email, calendars, Business
+                      Kits and files will eventually
+                      feed Frankie's Master View.
                     </p>
                   </div>
                 </div>

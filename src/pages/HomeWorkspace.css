@@ -1,0 +1,787 @@
+/* =========================================================
+   FRANKIE WORKSPACE — THEME SYSTEM
+   This file does NOT style the Welcome screen.
+   ========================================================= */
+
+.frankie-home {
+  --workspace-bg-1: #0a0908;
+  --workspace-bg-2: #100e0c;
+  --workspace-bg-3: #15100c;
+
+  --sidebar-bg: rgba(9, 8, 7, 0.78);
+  --header-bg: rgba(12, 10, 9, 0.38);
+  --drawer-bg: rgba(13, 11, 9, 0.52);
+
+  --surface-1: rgba(255, 255, 255, 0.026);
+  --surface-2: rgba(255, 255, 255, 0.018);
+  --surface-3: rgba(19, 16, 13, 0.92);
+
+  --text-primary: #eee4d5;
+  --text-secondary: #c6bdb1;
+  --text-muted: #847c73;
+  --text-faint: #625b54;
+
+  --accent: #c98243;
+  --accent-bright: #e0a15f;
+  --accent-soft: rgba(208, 89, 31, 0.13);
+
+  --border: rgba(194, 129, 61, 0.12);
+  --border-strong: rgba(204, 130, 62, 0.23);
+
+  --shadow:
+    0 12px 38px rgba(0, 0, 0, 0.24);
+
+  color: var(--text-primary);
+}
+
+
+/* =========================================================
+   LIGHT WORKSPACE
+   ========================================================= */
+
+.frankie-home[data-workspace-theme="light"] {
+  --workspace-bg-1: #f7f2e9;
+  --workspace-bg-2: #f3ecdf;
+  --workspace-bg-3: #eee4d4;
+
+  --sidebar-bg: rgba(246, 239, 228, 0.94);
+  --header-bg: rgba(250, 247, 241, 0.78);
+  --drawer-bg: rgba(244, 237, 226, 0.82);
+
+  --surface-1: rgba(255, 255, 255, 0.62);
+  --surface-2: rgba(255, 255, 255, 0.48);
+  --surface-3: rgba(255, 252, 247, 0.95);
+
+  --text-primary: #302a25;
+  --text-secondary: #554c44;
+  --text-muted: #766b62;
+  --text-faint: #9b9188;
+
+  --accent: #a95b2d;
+  --accent-bright: #c5783e;
+  --accent-soft: rgba(184, 91, 40, 0.09);
+
+  --border: rgba(126, 87, 51, 0.14);
+  --border-strong: rgba(159, 91, 45, 0.24);
+
+  --shadow:
+    0 12px 34px rgba(66, 47, 30, 0.08);
+}
+
+
+/* =========================================================
+   WORKSPACE BACKGROUND OVERRIDES
+   ========================================================= */
+
+.frankie-home {
+  background:
+    radial-gradient(
+      circle at 72% 12%,
+      rgba(211, 72, 25, 0.09),
+      transparent 27%
+    ),
+    radial-gradient(
+      circle at 24% 78%,
+      rgba(163, 95, 37, 0.045),
+      transparent 30%
+    ),
+    linear-gradient(
+      120deg,
+      var(--workspace-bg-1) 0%,
+      var(--workspace-bg-2) 48%,
+      var(--workspace-bg-3) 100%
+    );
+}
+
+.frankie-home[data-workspace-theme="light"]::after {
+  background:
+    radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      rgba(104, 70, 39, 0.05) 100%
+    );
+}
+
+.frankie-home[data-workspace-theme="light"]
+.home-ember-one {
+  background: rgba(198, 93, 41, 0.07);
+}
+
+.frankie-home[data-workspace-theme="light"]
+.home-ember-two {
+  background: rgba(185, 119, 55, 0.05);
+}
+
+
+/* =========================================================
+   SIDEBAR THEME OVERRIDES
+   ========================================================= */
+
+.frankie-home .frankie-sidebar {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border);
+}
+
+.frankie-home .sidebar-brand strong {
+  color: var(--text-primary);
+}
+
+.frankie-home .sidebar-brand span {
+  color: var(--text-muted);
+}
+
+
+/* =========================================================
+   MASTER / BUSINESS CONTEXT
+   ========================================================= */
+
+.workspace-context-area {
+  margin: 0 0 16px;
+  padding: 12px 8px 14px;
+
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.context-label {
+  display: block;
+
+  margin: 0 0 8px 3px;
+
+  color: var(--text-faint);
+
+  font-size: 0.56rem;
+  font-weight: 800;
+
+  letter-spacing: 0.18em;
+}
+
+.context-select-wrap {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 9px 9px;
+
+  border:
+    1px solid
+    var(--border-strong);
+
+  border-radius: 10px;
+
+  background: var(--surface-2);
+}
+
+.context-master-icon {
+  color: var(--accent);
+
+  font-size: 0.8rem;
+
+  text-shadow:
+    0 0 10px
+    rgba(207, 105, 45, 0.22);
+}
+
+.context-select {
+  min-width: 0;
+  width: 100%;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: var(--text-primary);
+
+  font-size: 0.76rem;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.context-select option {
+  background: #171310;
+  color: #eee4d5;
+}
+
+.frankie-home[data-workspace-theme="light"]
+.context-select option {
+  background: #f7f1e7;
+  color: #302a25;
+}
+
+.context-helper {
+  margin: 7px 3px 0;
+
+  color: var(--text-faint);
+
+  font-size: 0.61rem;
+  line-height: 1.35;
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.frankie-home .frankie-nav-item {
+  color: var(--text-muted);
+}
+
+.frankie-home .frankie-nav-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.frankie-home .frankie-nav-item.active {
+  color: var(--accent-bright);
+
+  border-color: var(--border);
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--accent-soft),
+      transparent
+    );
+}
+
+.frankie-home .nav-symbol {
+  color: var(--accent);
+}
+
+.nav-label {
+  min-width: 0;
+}
+
+.nav-count {
+  min-width: 21px;
+  height: 20px;
+
+  margin-left: auto;
+  padding: 0 6px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid
+    var(--border-strong);
+
+  border-radius: 999px;
+
+  background: var(--accent-soft);
+
+  color: var(--accent-bright);
+
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   APPEARANCE SETTING
+   ========================================================= */
+
+.appearance-setting {
+  padding: 10px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius: 10px;
+
+  background: var(--surface-2);
+}
+
+.appearance-heading {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.appearance-heading > span {
+  color: var(--accent);
+
+  font-size: 0.95rem;
+}
+
+.appearance-heading div {
+  display: flex;
+  flex-direction: column;
+}
+
+.appearance-heading strong {
+  color: var(--text-secondary);
+
+  font-size: 0.73rem;
+}
+
+.appearance-heading small {
+  margin-top: 2px;
+
+  color: var(--text-faint);
+
+  font-size: 0.63rem;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 5px;
+
+  margin-top: 9px;
+}
+
+.theme-option {
+  height: 29px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius: 7px;
+
+  background: transparent;
+
+  color: var(--text-muted);
+
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  background: var(--surface-1);
+
+  color: var(--text-primary);
+}
+
+.theme-option.active {
+  border-color:
+    var(--border-strong);
+
+  background:
+    var(--accent-soft);
+
+  color:
+    var(--accent-bright);
+}
+
+
+/* =========================================================
+   VOICE + SETTINGS
+   ========================================================= */
+
+.frankie-home .voice-setting {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.frankie-home .voice-setting strong {
+  color: var(--text-secondary);
+}
+
+.frankie-home .voice-setting small {
+  color: var(--text-faint);
+}
+
+.frankie-home .settings-button {
+  color: var(--text-muted);
+}
+
+.frankie-home .settings-button:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.frankie-home .workspace-header {
+  border-bottom-color: var(--border);
+  background: var(--header-bg);
+}
+
+.frankie-home .workspace-kicker {
+  color: var(--accent);
+}
+
+.frankie-home .workspace-header h1 {
+  color: var(--text-primary);
+}
+
+.workspace-header-right {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.current-context-pill {
+  padding: 7px 10px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius: 999px;
+
+  background: var(--surface-2);
+
+  color: var(--accent);
+
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.frankie-home .workspace-status {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+
+/* =========================================================
+   CHAT
+   ========================================================= */
+
+.frankie-home .conversation-panel {
+  border-right-color: var(--border);
+}
+
+.frankie-home .conversation-date {
+  color: var(--text-faint);
+}
+
+.frankie-home .message-bubble.frankie {
+  border-color: var(--border);
+
+  background: var(--surface-1);
+
+  color: var(--text-secondary);
+}
+
+.frankie-home .message-bubble.user {
+  border-color:
+    var(--border-strong);
+
+  color: var(--text-primary);
+}
+
+.frankie-home[data-workspace-theme="light"]
+.message-bubble.user {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(190, 92, 41, 0.12),
+      rgba(164, 92, 43, 0.07)
+    );
+}
+
+.frankie-home .message-heading strong {
+  color: var(--accent);
+}
+
+.frankie-home .speak-message {
+  color: var(--text-muted);
+}
+
+.frankie-home .speak-message:hover {
+  color: var(--accent);
+}
+
+
+/* =========================================================
+   COMPOSER
+   ========================================================= */
+
+.frankie-home .frankie-composer {
+  border-color: var(--border-strong);
+
+  background: var(--surface-3);
+
+  box-shadow: var(--shadow);
+}
+
+.frankie-home .frankie-composer:focus-within {
+  border-color:
+    rgba(194, 112, 55, 0.48);
+}
+
+.frankie-home .frankie-composer textarea {
+  color: var(--text-primary);
+}
+
+.frankie-home
+.frankie-composer
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.frankie-home .composer-mic {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.frankie-home .composer-hint {
+  color: var(--text-faint);
+}
+
+
+/* =========================================================
+   TODAY DRAWER
+   ========================================================= */
+
+.frankie-home .today-drawer {
+  background: var(--drawer-bg);
+}
+
+.frankie-home .today-label {
+  color: var(--accent);
+}
+
+.frankie-home .today-heading h2 {
+  color: var(--text-primary);
+}
+
+.frankie-home .close-today {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.today-context {
+  width: fit-content;
+
+  margin-top: 15px;
+  padding: 5px 8px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius: 999px;
+
+  background: var(--surface-2);
+
+  color: var(--accent);
+
+  font-size: 0.58rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frankie-home .today-date {
+  color: var(--text-muted);
+}
+
+.frankie-home .today-date strong {
+  color: var(--text-secondary);
+}
+
+.frankie-home .today-section {
+  border-top-color: var(--border);
+}
+
+.frankie-home .today-section-title {
+  color: var(--text-secondary);
+}
+
+.frankie-home .today-section-title button {
+  color: var(--accent);
+}
+
+.frankie-home .empty-today-state {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.frankie-home .empty-today-state strong {
+  color: var(--text-secondary);
+}
+
+.frankie-home .empty-today-state p {
+  color: var(--text-muted);
+}
+
+.today-mini-empty {
+  padding:
+    12px
+    13px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius: 10px;
+
+  background: var(--surface-2);
+
+  color: var(--text-muted);
+
+  font-size: 0.69rem;
+}
+
+.frankie-home .attention-item strong {
+  color: var(--text-secondary);
+}
+
+.frankie-home .attention-item p {
+  color: var(--text-muted);
+}
+
+.frankie-home .today-action {
+  border-color: var(--border-strong);
+
+  background: var(--accent-soft);
+
+  color: var(--accent);
+}
+
+
+/* =========================================================
+   LIGHT MODE IMAGE CONTAINERS
+   ========================================================= */
+
+.frankie-home[data-workspace-theme="light"]
+.sidebar-frankie-wrap,
+.frankie-home[data-workspace-theme="light"]
+.frankie-avatar {
+  background:
+    rgba(113, 53, 26, 0.88);
+
+  border-color:
+    rgba(167, 91, 44, 0.3);
+}
+
+
+/* =========================================================
+   LIGHT MODE BUTTON DETAILS
+   ========================================================= */
+
+.frankie-home[data-workspace-theme="light"]
+.composer-send {
+  color: #fffaf4;
+}
+
+.frankie-home[data-workspace-theme="light"]
+.status-dot {
+  background: #b86431;
+
+  box-shadow:
+    0 0 8px
+    rgba(184, 100, 49, 0.35);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1050px) {
+  .workspace-context-area {
+    padding-inline: 2px;
+  }
+
+  .context-label,
+  .context-helper,
+  .context-master-icon,
+  .context-select {
+    display: none;
+  }
+
+  .context-select-wrap {
+    width: 42px;
+    height: 38px;
+
+    margin: 0 auto;
+
+    padding: 0;
+
+    justify-content: center;
+
+    border-radius: 9px;
+  }
+
+  .context-select-wrap::after {
+    content: "✦";
+
+    color: var(--accent);
+  }
+
+  .appearance-heading div,
+  .appearance-heading > span {
+    display: none;
+  }
+
+  .appearance-setting {
+    padding: 6px;
+  }
+
+  .theme-options {
+    grid-template-columns: 1fr;
+
+    margin-top: 0;
+  }
+
+  .theme-option {
+    height: 28px;
+  }
+
+  .nav-count {
+    position: absolute;
+
+    right: 4px;
+    top: 3px;
+
+    min-width: 16px;
+    height: 16px;
+
+    padding: 0 4px;
+
+    font-size: 0.52rem;
+  }
+
+  .frankie-nav-item {
+    position: relative;
+  }
+
+  .current-context-pill {
+    display: none;
+  }
+}
+
+
+@media (max-width: 760px) {
+  .workspace-context-area {
+    display: none;
+  }
+
+  .appearance-setting {
+    width: auto;
+  }
+
+  .theme-options {
+    display: flex;
+
+    gap: 3px;
+  }
+
+  .theme-option {
+    width: 28px;
+    height: 28px;
+  }
+
+  .workspace-header-right {
+    margin-left: auto;
+  }
+}
