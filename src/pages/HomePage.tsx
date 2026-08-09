@@ -44,16 +44,33 @@ function HomePage() {
       id: 2,
       role: 'frankie',
       text:
-        "You can type to me, or tap the microphone and talk. What would you like to work on first?",
+        'You can type to me, or tap the microphone and talk. What would you like to work on first?',
     },
   ])
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
 
+  /*
+   * Always start the Frankie workspace at the top.
+   * This prevents the scroll position from the Welcome page
+   * from carrying over to /home.
+   */
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant',
+    })
+
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [])
+
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({
       behavior: 'smooth',
+      block: 'nearest',
     })
   }, [messages])
 
@@ -80,9 +97,7 @@ function HomePage() {
     window.speechSynthesis.speak(utterance)
   }
 
-  const sendMessage = (event?: React.FormEvent<HTMLFormElement>) => {   
-    event?.preventDefault()
-
+  const handleSendMessage = () => {
     const trimmedMessage = message.trim()
 
     if (!trimmedMessage) {
@@ -245,7 +260,10 @@ function HomePage() {
       <section className="frankie-workspace">
         <header className="workspace-header">
           <div>
-            <p className="workspace-kicker">YOUR BUSINESS, IN ONE PLACE</p>
+            <p className="workspace-kicker">
+              YOUR BUSINESS, IN ONE PLACE
+            </p>
+
             <h1>Talk to Frankie</h1>
           </div>
 
@@ -286,7 +304,9 @@ function HomePage() {
                           type="button"
                           className="speak-message"
                           aria-label="Read Frankie response aloud"
-                          onClick={() => speakText(chatMessage.text)}
+                          onClick={() =>
+                            speakText(chatMessage.text)
+                          }
                         >
                           ◖))
                         </button>
@@ -303,7 +323,10 @@ function HomePage() {
 
             <form
               className="frankie-composer"
-              onSubmit={sendMessage}
+              onSubmit={(event) => {
+                event.preventDefault()
+                handleSendMessage()
+              }}
             >
               <button
                 type="button"
@@ -339,7 +362,7 @@ function HomePage() {
                     !event.shiftKey
                   ) {
                     event.preventDefault()
-                    sendMessage()
+                    handleSendMessage()
                   }
                 }}
               />
@@ -384,6 +407,7 @@ function HomePage() {
               <div className="today-section">
                 <div className="today-section-title">
                   <span>Calendar</span>
+
                   <button type="button">
                     Open
                   </button>
@@ -391,10 +415,15 @@ function HomePage() {
 
                 <div className="empty-today-state">
                   <span className="empty-icon">◷</span>
-                  <strong>Calendar not connected yet</strong>
+
+                  <strong>
+                    Calendar not connected yet
+                  </strong>
+
                   <p>
-                    Once connected, Frankie will keep your schedule
-                    here and help you stay ahead of the day.
+                    Once connected, Frankie will keep your
+                    schedule here and help you stay ahead
+                    of the day.
                   </p>
                 </div>
               </div>
@@ -408,10 +437,13 @@ function HomePage() {
                   <span className="attention-dot" />
 
                   <div>
-                    <strong>Connect your business tools</strong>
+                    <strong>
+                      Connect your business tools
+                    </strong>
+
                     <p>
-                      Email, calendar and your Business Kit will
-                      eventually feed Frankie from here.
+                      Email, calendar and your Business Kit
+                      will eventually feed Frankie from here.
                     </p>
                   </div>
                 </div>
@@ -421,7 +453,9 @@ function HomePage() {
                 type="button"
                 className="today-action"
                 onClick={() =>
-                  setMessage("What's on my plate today?")
+                  setMessage(
+                    "What's on my plate today?",
+                  )
                 }
               >
                 Ask Frankie about my day
