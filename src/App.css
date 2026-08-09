@@ -119,7 +119,7 @@ select {
 
 
 /* =========================================================
-   AMBIENT GLOW
+   WELCOME AMBIENT GLOW
    ========================================================= */
 
 .welcome-ember-glow {
@@ -209,7 +209,7 @@ select {
 
 
 /* =========================================================
-   MAIN STAGE
+   WELCOME MAIN STAGE
    ========================================================= */
 
 .welcome-stage {
@@ -241,7 +241,7 @@ select {
 
 
 /* =========================================================
-   LEFT SIDE
+   WELCOME LEFT
    ========================================================= */
 
 .welcome-content {
@@ -260,7 +260,7 @@ select {
 
 
 /* =========================================================
-   LOGO CROPPING
+   WELCOME LOGO
    ========================================================= */
 
 .logo-crop {
@@ -295,7 +295,7 @@ select {
 
 
 /* =========================================================
-   CONVERSATION
+   WELCOME COPY
    ========================================================= */
 
 .welcome-conversation {
@@ -386,7 +386,7 @@ select {
 
 
 /* =========================================================
-   BUTTON
+   WELCOME BUTTON
    ========================================================= */
 
 .fire-button {
@@ -485,7 +485,7 @@ select {
 
 
 /* =========================================================
-   FRANKIE STAGE
+   WELCOME FRANKIE STAGE
    ========================================================= */
 
 .frankie-stage {
@@ -503,11 +503,6 @@ select {
   isolation: isolate;
   overflow: visible;
 }
-
-
-/* =========================================================
-   FRANKIE AURA
-   ========================================================= */
 
 .frankie-aura {
   position: absolute;
@@ -537,11 +532,6 @@ select {
 
   z-index: 0;
 }
-
-
-/* =========================================================
-   FLOOR GLOW
-   ========================================================= */
 
 .frankie-floor-glow {
   position: absolute;
@@ -612,11 +602,6 @@ select {
   z-index: 2;
 }
 
-
-/* =========================================================
-   FRANKIE
-   ========================================================= */
-
 .frankie-character {
   position: relative;
 
@@ -651,7 +636,7 @@ select {
 
 
 /* =========================================================
-   FOOTER
+   WELCOME FOOTER
    ========================================================= */
 
 .welcome-footer {
@@ -698,7 +683,7 @@ select {
 
 
 /* =========================================================
-   RESPONSIVE
+   WELCOME RESPONSIVE
    ========================================================= */
 
 @media (max-width: 1120px) {
@@ -732,7 +717,6 @@ select {
     height: min(64vh, 600px);
   }
 }
-
 
 @media (max-width: 850px) {
   .welcome-stage {
@@ -801,7 +785,6 @@ select {
   }
 }
 
-
 @media (max-width: 540px) {
   .welcome-stage {
     padding-inline: 20px;
@@ -862,64 +845,13 @@ select {
 
 
 /* =========================================================
-   TEMP HOME
-   ========================================================= */
-
-.app-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 32px;
-  background: #0d0c0b;
-}
-
-.welcome-card {
-  width: min(760px, 100%);
-  padding: 50px;
-
-  border:
-    1px solid
-    rgba(191, 131, 66, 0.22);
-
-  border-radius: 24px;
-
-  background:
-    rgba(24, 21, 18, 0.9);
-
-  color: #f2eadb;
-}
-
-.eyebrow {
-  color: #d08b45;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
-.tagline {
-  color: #d2a25e;
-}
-
-.mission {
-  margin-top: 20px;
-  color: #bdb4a6;
-  line-height: 1.7;
-}
-
-.text-link {
-  display: inline-block;
-  margin-top: 30px;
-  color: #e28a48;
-  font-weight: 800;
-  text-decoration: none;
-}
-/* =========================================================
-   FRANKIE HOME / MAIN WORKSPACE
+   FRANKIE HOME
    ========================================================= */
 
 .frankie-home {
   position: relative;
 
+  width: 100%;
   min-height: 100vh;
   height: 100vh;
 
@@ -1001,7 +933,7 @@ select {
 
 
 /* =========================================================
-   SIDEBAR
+   HOME SIDEBAR
    ========================================================= */
 
 .frankie-sidebar {
@@ -1038,43 +970,58 @@ select {
     22px;
 }
 
-.sidebar-mark {
-  width: 38px;
-  height: 38px;
 
-  display: grid;
-  place-items: center;
+/* =========================================================
+   SIDEBAR FRANKIE IMAGE
+   ========================================================= */
 
-  flex: 0 0 auto;
+.sidebar-frankie-wrap {
+  position: relative;
+
+  width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   border:
     1px solid
-    rgba(226, 135, 57, 0.55);
+    rgba(226, 135, 57, 0.45);
 
   border-radius: 12px;
 
   background:
-    radial-gradient(
-      circle at 50% 35%,
-      rgba(230, 110, 43, 0.34),
-      rgba(132, 45, 20, 0.18)
-    );
-
-  color: #f4c077;
-
-  font-family:
-    Georgia,
-    "Times New Roman",
-    serif;
-
-  font-size: 1.3rem;
+    rgba(88, 30, 15, 0.35);
 
   box-shadow:
-    0 0 22px
-    rgba(220, 81, 25, 0.16);
+    0 0 20px
+    rgba(220, 81, 25, 0.11);
 }
 
-.sidebar-brand div:last-child {
+.sidebar-frankie-image {
+  display: block;
+
+  width: 46px;
+  height: 46px;
+
+  max-width: 46px;
+  max-height: 46px;
+
+  object-fit: cover;
+  object-position: center 28%;
+
+  transform: scale(1.1);
+
+  pointer-events: none;
+  user-select: none;
+}
+
+.sidebar-brand > div:last-child {
   min-width: 0;
 
   display: flex;
@@ -1105,6 +1052,11 @@ select {
 
   text-transform: uppercase;
 }
+
+
+/* =========================================================
+   HOME NAV
+   ========================================================= */
 
 .frankie-nav {
   display: flex;
@@ -1176,6 +1128,11 @@ select {
 
   text-align: center;
 }
+
+
+/* =========================================================
+   HOME SIDEBAR BOTTOM
+   ========================================================= */
 
 .sidebar-bottom {
   margin-top: auto;
@@ -1268,7 +1225,7 @@ select {
 
 
 /* =========================================================
-   MAIN WORKSPACE
+   HOME WORKSPACE
    ========================================================= */
 
 .frankie-workspace {
@@ -1366,11 +1323,12 @@ select {
 
 
 /* =========================================================
-   WORKSPACE BODY
+   HOME BODY
    ========================================================= */
 
 .workspace-body {
   min-height: 0;
+
   flex: 1;
 
   display: grid;
@@ -1385,7 +1343,7 @@ select {
 
 
 /* =========================================================
-   CHAT
+   HOME CHAT
    ========================================================= */
 
 .conversation-panel {
@@ -1451,16 +1409,26 @@ select {
   justify-content: flex-end;
 }
 
+
+/* =========================================================
+   CHAT FRANKIE AVATAR
+   ========================================================= */
+
 .frankie-avatar {
-  width: 34px;
-  height: 34px;
+  position: relative;
 
-  display: grid;
-  place-items: center;
+  width: 40px;
+  height: 40px;
 
-  flex: 0 0 auto;
+  flex: 0 0 40px;
 
   margin-top: 2px;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   border:
     1px solid
@@ -1469,21 +1437,35 @@ select {
   border-radius: 50%;
 
   background:
-    radial-gradient(
-      circle at 50% 30%,
-      rgba(221, 100, 37, 0.24),
-      rgba(91, 34, 18, 0.24)
-    );
+    rgba(84, 28, 15, 0.38);
 
-  color: #e7a25c;
-
-  font-family:
-    Georgia,
-    "Times New Roman",
-    serif;
-
-  font-weight: 700;
+  box-shadow:
+    0 0 16px
+    rgba(220, 79, 24, 0.1);
 }
+
+.frankie-avatar img {
+  display: block;
+
+  width: 40px;
+  height: 40px;
+
+  max-width: 40px;
+  max-height: 40px;
+
+  object-fit: cover;
+  object-position: center 25%;
+
+  transform: scale(1.12);
+
+  pointer-events: none;
+  user-select: none;
+}
+
+
+/* =========================================================
+   MESSAGE BUBBLES
+   ========================================================= */
 
 .message-bubble {
   max-width: min(670px, 76%);
@@ -1571,7 +1553,7 @@ select {
 
 
 /* =========================================================
-   COMPOSER
+   HOME COMPOSER
    ========================================================= */
 
 .frankie-composer {
@@ -1912,6 +1894,7 @@ select {
   color: #706960;
 
   font-size: 0.7rem;
+
   line-height: 1.55;
 }
 
@@ -1957,6 +1940,7 @@ select {
   color: #69625b;
 
   font-size: 0.68rem;
+
   line-height: 1.5;
 }
 
@@ -2024,6 +2008,7 @@ select {
 
   .nav-symbol {
     flex-basis: auto;
+
     width: auto;
   }
 
@@ -2033,7 +2018,6 @@ select {
       minmax(280px, 310px);
   }
 }
-
 
 @media (max-width: 760px) {
   .frankie-home {
@@ -2156,4 +2140,72 @@ select {
       60px
       rgba(0, 0, 0, 0.4);
   }
+}
+
+
+/* =========================================================
+   TEMP HOME PLACEHOLDER
+   ========================================================= */
+
+.app-shell {
+  min-height: 100vh;
+
+  display: grid;
+
+  place-items: center;
+
+  padding: 32px;
+
+  background: #0d0c0b;
+}
+
+.welcome-card {
+  width: min(760px, 100%);
+
+  padding: 50px;
+
+  border:
+    1px solid
+    rgba(191, 131, 66, 0.22);
+
+  border-radius: 24px;
+
+  background:
+    rgba(24, 21, 18, 0.9);
+
+  color: #f2eadb;
+}
+
+.eyebrow {
+  color: #d08b45;
+
+  font-weight: 800;
+
+  letter-spacing: 0.15em;
+
+  text-transform: uppercase;
+}
+
+.tagline {
+  color: #d2a25e;
+}
+
+.mission {
+  margin-top: 20px;
+
+  color: #bdb4a6;
+
+  line-height: 1.7;
+}
+
+.text-link {
+  display: inline-block;
+
+  margin-top: 30px;
+
+  color: #e28a48;
+
+  font-weight: 800;
+
+  text-decoration: none;
 }
