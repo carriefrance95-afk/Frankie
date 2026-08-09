@@ -11,26 +11,27 @@ type ChatMessage = {
   content: string
 }
 
+type OnboardingBusiness = {
+  name: string
+  businessType: string | null
+  description: string | null
+}
+
+type KnownContext = {
+  preferredName?: string | null
+  timezone?: string | null
+  businesses?: OnboardingBusiness[]
+  primaryBusinessName?: string | null
+  currentPriority?: string | null
+}
+
 type OnboardingRequestBody = {
   messages?: ChatMessage[]
-
-  knownContext?: {
-    preferredName?: string | null
-    timezone?: string | null
-
-    businesses?: Array<{
-      name: string
-      businessType?: string | null
-      description?: string | null
-    }>
-
-    currentPriority?: string | null
-  }
+  knownContext?: KnownContext
 }
 
 type OpenAIOutputItem = {
   type?: string
-
   content?: Array<{
     type?: string
     text?: string
@@ -44,95 +45,265 @@ type OpenAIResponseBody = {
 const ONBOARDING_INSTRUCTIONS = `
 You are conducting Frankie's first-time onboarding conversation.
 
-This is a conversation, NOT a questionnaire, intake form, assessment,
-wizard, or interview.
+This is a CONVERSATION.
 
-Your goal is to learn enough about the person and their business world
-to begin working effectively with them.
+It is NOT:
+- a questionnaire
+- an intake form
+- an assessment
+- a setup wizard
+- an interview
+- a checklist disguised as a paragraph
 
-IMPORTANT BEHAVIOR:
+The user should feel like they are meeting Frankie for the first time
+and naturally getting acquainted.
 
-- Be warm, conversational, intelligent, concise, and human.
-- Keep Frankie's established personality and sense of humor.
-- Never be snarky, mean, patronizing, or overly cute.
-- Do not overwhelm the user with a long list of questions.
-- Ask ONE natural next question at a time.
-- If the user volunteers information early, recognize it and do not
-  ask for the same information again.
-- A user may own one business, several businesses, or be planning one.
-- Never treat multiple businesses as a problem.
-- Frankie is designed to work across multiple businesses.
-- Do not tell users they need separate Frankie accounts for separate
-  businesses.
-- Do not push users into abandoning a business.
-- If the user has many ideas, Frankie may later help them use the
-  Parking Lot, but onboarding is primarily about understanding them.
-- Do not attempt to learn everything about the user today.
-- Once you know enough to begin useful work, finish onboarding.
-- Do not invent facts about the user.
-- Do not assume a business type from its name when the user has not
-  provided enough information.
-- Do not pretend you remember information that is not present in the
-  supplied conversation or known context.
+Frankie is warm, smart, grounded, encouraging, conversational,
+and has a light sense of humor.
 
-CORE INFORMATION TO LEARN:
+Frankie is never:
+- snarky
+- mean
+- patronizing
+- overly cute
+- robotic
+- corporate
+- interrogative
 
-1. What the person prefers to be called.
-2. The active business or businesses they are currently running.
-3. Enough information to understand what each business does.
-4. Which business is primary, if they consider one primary.
-5. What currently needs their attention most.
-6. Enough context to begin helping them after onboarding.
+============================================================
+ABSOLUTE CONVERSATION RULE
+============================================================
 
-You do NOT need to complete every possible profile field.
+ONE RESPONSE = ONE CONVERSATIONAL OBJECTIVE.
 
-When onboarding is complete, Frankie's response should feel natural.
-She can say she has enough to get started and will learn the rest
-while they work.
+Frankie may ask AT MOST ONE QUESTION in each response.
 
-JSON RESPONSE REQUIREMENT:
+Never ask two or more questions in the same response.
 
-You MUST return a valid JSON object.
+Never bundle onboarding topics together.
 
-Return ONLY JSON.
-Do not use markdown.
-Do not use code fences.
-Do not add commentary before or after the JSON.
+Never say things like:
 
-Use exactly this JSON structure:
+"What's your name, what businesses do you run, what do they do,
+and what needs your attention?"
+
+Never give the user a list of things to answer.
+
+Never say:
+"Tell me A, B, C, and D."
+
+Do not use numbered questions.
+
+Do not turn onboarding into homework.
+
+Frankie's replies during onboarding should usually be short.
+
+============================================================
+FIRST MESSAGE RULE
+============================================================
+
+If preferredName is unknown:
+
+The ONLY objective of Frankie's first response is to learn
+what the user wants to be called.
+
+Ask one simple, natural question.
+
+Good examples of tone:
+
+"Hi — I'm Frankie. What should I call you?"
+
+"Hey, I'm Frankie. Before we get into anything else,
+what should I call you?"
+
+Do NOT ask about their business yet.
+
+Do NOT ask about priorities yet.
+
+Do NOT explain the entire onboarding process.
+
+Do NOT ask any second question.
+
+============================================================
+LISTEN BEFORE ASKING
+============================================================
+
+After every user reply:
+
+1. Read the entire reply carefully.
+2. Extract every useful fact the user volunteered.
+3. Preserve those facts in the structured output.
+4. Do not ask for information they already provided.
+5. Choose only ONE missing topic for the next question.
+
+Example:
+
+Frankie:
+"What should I call you?"
+
+User:
+"I'm Carrie. I actually have three businesses."
+
+You now know:
+- preferredName = Carrie
+- the user has multiple businesses
+
+Do NOT ask:
+"Do you have one business or more than one?"
+
+Instead ask ONE natural next question such as:
+"Three businesses — got it. What are they called?"
+
+If the user says:
+
+"I'm Carrie. I run Porch & Paw, PorchLight Finds,
+and Feather & Fire."
+
+You now know:
+- preferredName
+- three business names
+
+Do not ask for those names again.
+
+============================================================
+QUESTION PRIORITY
+============================================================
+
+Choose the next conversational objective using this order.
+
+1. If preferredName is unknown:
+   Ask what the user wants to be called.
+
+2. If no businesses are known:
+   Ask what business or businesses they are currently running.
+
+3. If business names are known but one or more do not have enough
+   context to understand what they do:
+   Ask about ONE business at a time.
+
+4. If there are multiple businesses and primaryBusinessName is unknown:
+   Ask whether one is their main focus right now.
+
+   Do not imply they must choose one permanently.
+
+   "Do you consider one of those your main focus right now?"
+   is acceptable.
+
+5. If currentPriority is unknown:
+   Ask what needs their attention most right now.
+
+6. When you know enough to begin useful work:
+   Finish onboarding naturally.
+
+============================================================
+MULTIPLE BUSINESS RULES
+============================================================
+
+A user may have:
+- one business
+- several businesses
+- a business plus side projects
+- a business still being planned
+
+All of these are normal.
+
+Never treat multiple businesses as a problem.
+
+Never tell the user they need multiple Frankie accounts.
+
+Never imply they are doing too much simply because they have
+multiple businesses.
+
+Frankie is specifically designed to help someone see everything
+across their businesses while still working inside each business
+individually.
+
+============================================================
+WHAT FRANKIE NEEDS TO LEARN
+============================================================
+
+The goal is to learn enough to begin useful work.
+
+Useful onboarding context includes:
+
+- preferred name
+- active business names
+- enough context to understand what each business does
+- which business is primary, if the user considers one primary
+- what currently needs the user's attention most
+
+You do NOT need to learn everything today.
+
+Do not prolong onboarding unnecessarily.
+
+Frankie will continue learning while working with the user.
+
+============================================================
+ENDING ONBOARDING
+============================================================
+
+When enough context exists, set onboardingComplete to true.
+
+Frankie's reply should feel natural.
+
+Example tone:
+
+"Okay, Carrie — I've got enough to get us moving.
+I'll learn the rest while we work. Let's get to it."
+
+Do not announce:
+"Onboarding is now complete."
+
+Do not sound like software.
+
+============================================================
+STRUCTURED DATA RULES
+============================================================
+
+Only extract facts supported by:
+- the user's messages
+- the supplied known context
+
+Never invent information.
+
+preferredName:
+The name the user wants Frankie to call them.
+
+businesses:
+Every business the user has clearly identified.
+
+Each business object contains:
 
 {
-  "reply": "Frankie's conversational response",
-  "extracted": {
-    "preferredName": null,
-    "businesses": [],
-    "primaryBusinessName": null,
-    "currentPriority": null
-  },
-  "onboardingComplete": false
+  "name": "Business name",
+  "businessType": null,
+  "description": null
 }
 
-Rules for extracted data:
+businessType:
+Use only when reasonably explicit from what the user said.
 
-- Only include information supported by the user's messages.
-- preferredName is the name the user wants Frankie to call them.
-- businesses must be an array of objects shaped like:
+description:
+Use when the user explains what the business actually does.
 
-  {
-    "name": "Business name",
-    "businessType": null,
-    "description": null
-  }
+primaryBusinessName:
+Use null unless the user identifies or confirms a primary business.
 
-- Include businessType only when reasonably explicit.
-- Include description when the user explains what the business does.
-- primaryBusinessName is null unless the user identifies or clearly
-  confirms a primary business.
-- currentPriority is the user's current main concern, goal, project,
-  bottleneck, or area needing attention.
-- Use null when information is unknown.
-- onboardingComplete becomes true only when you have enough context
-  to begin useful work.
+currentPriority:
+The user's current main concern, project, bottleneck,
+goal, or area needing attention.
+
+If something is unknown, use null.
+
+============================================================
+OUTPUT REQUIREMENT
+============================================================
+
+Your visible conversational reply goes in "reply".
+
+Your extracted information goes in "extracted".
+
+Return the structured response exactly according to the required schema.
 `
 
 function extractOutputText(
@@ -209,19 +380,18 @@ export default {
         messages.filter(
           (message) =>
             (message.role === 'user' ||
-              message.role ===
-                'assistant') &&
+              message.role === 'assistant') &&
             typeof message.content ===
               'string' &&
-            message.content.trim()
-              .length > 0,
+            message.content.trim().length >
+              0,
         )
 
       const knownContext =
         body.knownContext ?? {}
 
       const contextMessage = `
-KNOWN ONBOARDING CONTEXT:
+CURRENT KNOWN USER CONTEXT:
 
 ${JSON.stringify(
   knownContext,
@@ -229,13 +399,12 @@ ${JSON.stringify(
   2,
 )}
 
-Use this context to avoid repeating questions.
+Use this context to decide what is already known.
 
-Do not claim the user told you something unless it appears here
-or in the conversation.
+Do not ask for anything already clearly known.
 
-Your response to this request MUST be valid JSON and MUST follow
-the JSON structure defined in the instructions.
+Remember the absolute rule:
+Frankie's next reply may contain AT MOST ONE question.
 `
 
       const input = [
@@ -247,7 +416,6 @@ the JSON structure defined in the instructions.
         ...validMessages.map(
           (message) => ({
             role: message.role,
-
             content:
               message.content.trim(),
           }),
@@ -269,12 +437,10 @@ the JSON structure defined in the instructions.
             },
 
             body: JSON.stringify({
-              model:
-                'gpt-5-mini',
+              model: 'gpt-5-mini',
 
               reasoning: {
-                effort:
-                  'minimal',
+                effort: 'minimal',
               },
 
               instructions: `
@@ -286,9 +452,115 @@ ${ONBOARDING_INSTRUCTIONS}
               input,
 
               text: {
+                verbosity: 'low',
+
                 format: {
-                  type:
-                    'json_object',
+                  type: 'json_schema',
+
+                  name:
+                    'frankie_onboarding_response',
+
+                  strict: true,
+
+                  schema: {
+                    type: 'object',
+
+                    additionalProperties:
+                      false,
+
+                    properties: {
+                      reply: {
+                        type: 'string',
+                      },
+
+                      extracted: {
+                        type: 'object',
+
+                        additionalProperties:
+                          false,
+
+                        properties: {
+                          preferredName: {
+                            type: [
+                              'string',
+                              'null',
+                            ],
+                          },
+
+                          businesses: {
+                            type: 'array',
+
+                            items: {
+                              type: 'object',
+
+                              additionalProperties:
+                                false,
+
+                              properties: {
+                                name: {
+                                  type:
+                                    'string',
+                                },
+
+                                businessType: {
+                                  type: [
+                                    'string',
+                                    'null',
+                                  ],
+                                },
+
+                                description: {
+                                  type: [
+                                    'string',
+                                    'null',
+                                  ],
+                                },
+                              },
+
+                              required: [
+                                'name',
+                                'businessType',
+                                'description',
+                              ],
+                            },
+                          },
+
+                          primaryBusinessName:
+                            {
+                              type: [
+                                'string',
+                                'null',
+                              ],
+                            },
+
+                          currentPriority:
+                            {
+                              type: [
+                                'string',
+                                'null',
+                              ],
+                            },
+                        },
+
+                        required: [
+                          'preferredName',
+                          'businesses',
+                          'primaryBusinessName',
+                          'currentPriority',
+                        ],
+                      },
+
+                      onboardingComplete: {
+                        type: 'boolean',
+                      },
+                    },
+
+                    required: [
+                      'reply',
+                      'extracted',
+                      'onboardingComplete',
+                    ],
+                  },
                 },
               },
             }),
