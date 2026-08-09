@@ -2209,3 +2209,604 @@ select {
 
   text-decoration: none;
 }
+/* =========================================================
+   WORKSPACE VIEWPORT / LAPTOP FIT FIX
+   Keeps the workspace inside one screen on normal laptops.
+   Sidebar navigation scrolls only when the screen is too short.
+   ========================================================= */
+
+.frankie-home {
+  height: 100dvh;
+  min-height: 100dvh;
+
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   SIDEBAR — COMPACT + SAFE SCROLLING
+   ========================================================= */
+
+.frankie-sidebar {
+  height: 100dvh;
+  min-height: 0;
+
+  overflow: hidden;
+
+  padding:
+    16px
+    12px
+    12px;
+}
+
+
+/* Brand takes less vertical room */
+
+.sidebar-brand {
+  flex: 0 0 auto;
+
+  gap: 9px;
+
+  padding:
+    0
+    5px
+    13px;
+}
+
+.sidebar-frankie-wrap {
+  width: 43px;
+  height: 43px;
+
+  flex-basis: 43px;
+}
+
+.sidebar-frankie-image {
+  width: 43px;
+  height: 43px;
+
+  max-width: 43px;
+  max-height: 43px;
+}
+
+.sidebar-brand strong {
+  font-size: 0.95rem;
+}
+
+.sidebar-brand span {
+  font-size: 0.6rem;
+}
+
+
+/* Master View section becomes tighter */
+
+.workspace-context-area {
+  flex: 0 0 auto;
+
+  margin:
+    0
+    0
+    10px;
+
+  padding:
+    9px
+    5px
+    10px;
+}
+
+.context-label {
+  margin:
+    0
+    0
+    6px
+    2px;
+
+  font-size: 0.52rem;
+}
+
+.context-select-wrap {
+  gap: 6px;
+
+  padding:
+    7px
+    8px;
+}
+
+.context-select {
+  font-size: 0.72rem;
+}
+
+.context-helper {
+  margin:
+    5px
+    2px
+    0;
+
+  font-size: 0.56rem;
+
+  line-height: 1.25;
+}
+
+
+/* =========================================================
+   NAV — THIS IS THE SECTION THAT MAY SCROLL
+   ========================================================= */
+
+.frankie-nav {
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  gap: 2px;
+
+  padding-right: 3px;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    rgba(190, 117, 53, 0.22)
+    transparent;
+}
+
+.frankie-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.frankie-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.frankie-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+
+  background:
+    rgba(190, 117, 53, 0.22);
+}
+
+
+/* Slightly tighter menu items */
+
+.frankie-nav-item {
+  gap: 9px;
+
+  padding:
+    7px
+    9px;
+
+  min-height: 35px;
+
+  font-size: 0.78rem;
+}
+
+.nav-symbol {
+  width: 19px;
+
+  flex-basis: 19px;
+
+  font-size: 0.92rem;
+}
+
+.nav-count {
+  min-width: 19px;
+  height: 18px;
+
+  padding:
+    0
+    5px;
+
+  font-size: 0.56rem;
+}
+
+
+/* =========================================================
+   SIDEBAR BOTTOM — ALWAYS AVAILABLE
+   ========================================================= */
+
+.sidebar-bottom {
+  flex: 0 0 auto;
+
+  margin-top: 8px;
+
+  gap: 5px;
+
+  padding-top: 7px;
+
+  border-top:
+    1px solid
+    rgba(194, 129, 61, 0.08);
+}
+
+.voice-setting {
+  gap: 8px;
+
+  padding:
+    8px
+    9px;
+}
+
+.voice-setting > span {
+  font-size: 0.9rem;
+}
+
+.voice-setting strong {
+  font-size: 0.7rem;
+}
+
+.voice-setting small {
+  font-size: 0.59rem;
+}
+
+.settings-button {
+  gap: 9px;
+
+  padding:
+    7px
+    9px;
+
+  font-size: 0.72rem;
+}
+
+
+/* =========================================================
+   WORKSPACE MAIN AREA
+   ========================================================= */
+
+.frankie-workspace {
+  height: 100dvh;
+
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+.workspace-header {
+  flex: 0 0 auto;
+
+  min-height: 72px;
+
+  padding:
+    12px
+    clamp(22px, 3vw, 40px);
+}
+
+.workspace-kicker {
+  margin-bottom: 2px;
+
+  font-size: 0.57rem;
+}
+
+.workspace-header h1 {
+  font-size:
+    clamp(
+      1.35rem,
+      1.8vw,
+      1.7rem
+    );
+}
+
+.workspace-status,
+.current-context-pill {
+  padding:
+    6px
+    9px;
+}
+
+
+/* =========================================================
+   WORKSPACE BODY
+   ========================================================= */
+
+.workspace-body {
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+.conversation-panel {
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+
+/* Chat itself scrolls — composer stays visible */
+
+.conversation-scroll {
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding:
+    22px
+    clamp(26px, 4vw, 62px)
+    16px;
+}
+
+.conversation-date {
+  margin-bottom: 22px;
+}
+
+.message-row {
+  margin-bottom: 16px;
+}
+
+.message-bubble {
+  padding:
+    12px
+    15px;
+}
+
+.message-bubble p {
+  font-size: 0.88rem;
+
+  line-height: 1.58;
+}
+
+
+/* =========================================================
+   COMPOSER — STAYS VISIBLE
+   ========================================================= */
+
+.frankie-composer {
+  flex: 0 0 auto;
+
+  margin:
+    0
+    clamp(20px, 4vw, 58px);
+
+  padding:
+    7px
+    7px
+    7px
+    8px;
+}
+
+.frankie-composer textarea {
+  padding:
+    8px
+    5px;
+
+  font-size: 0.86rem;
+}
+
+.composer-mic,
+.composer-send {
+  width: 36px;
+  height: 36px;
+
+  flex-basis: 36px;
+}
+
+.composer-hint {
+  flex: 0 0 auto;
+
+  padding:
+    5px
+    clamp(20px, 4vw, 58px)
+    9px;
+
+  font-size: 0.56rem;
+}
+
+
+/* =========================================================
+   TODAY DRAWER — INDEPENDENT SCROLLING
+   ========================================================= */
+
+.today-drawer {
+  min-height: 0;
+  height: 100%;
+
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding:
+    20px
+    20px
+    24px;
+
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    rgba(190, 117, 53, 0.22)
+    transparent;
+}
+
+.today-heading h2 {
+  font-size: 1.35rem;
+}
+
+.today-date {
+  margin-top: 17px;
+}
+
+.today-section {
+  margin-top: 20px;
+
+  padding-top: 17px;
+}
+
+.today-section-title {
+  margin-bottom: 10px;
+}
+
+.empty-today-state {
+  padding:
+    14px
+    13px;
+}
+
+.attention-item {
+  padding:
+    10px
+    2px;
+}
+
+.today-action {
+  margin-top: 18px;
+
+  padding:
+    9px
+    12px;
+}
+
+
+/* =========================================================
+   SHORT LAPTOP SCREENS
+   768–850px tall is extremely common.
+   ========================================================= */
+
+@media (max-height: 850px) and (min-width: 761px) {
+  .frankie-sidebar {
+    padding:
+      12px
+      10px
+      9px;
+  }
+
+  .sidebar-brand {
+    padding-bottom: 9px;
+  }
+
+  .sidebar-frankie-wrap,
+  .sidebar-frankie-image {
+    width: 39px;
+    height: 39px;
+  }
+
+  .sidebar-frankie-wrap {
+    flex-basis: 39px;
+  }
+
+  .workspace-context-area {
+    margin-bottom: 7px;
+
+    padding:
+      7px
+      4px
+      8px;
+  }
+
+  .context-helper {
+    font-size: 0.52rem;
+  }
+
+  .frankie-nav {
+    gap: 1px;
+  }
+
+  .frankie-nav-item {
+    min-height: 32px;
+
+    padding:
+      5px
+      8px;
+
+    font-size: 0.74rem;
+  }
+
+  .sidebar-bottom {
+    margin-top: 5px;
+
+    padding-top: 5px;
+  }
+
+  .voice-setting {
+    padding:
+      6px
+      8px;
+  }
+
+  .settings-button {
+    padding:
+      6px
+      8px;
+  }
+
+  .workspace-header {
+    min-height: 66px;
+
+    padding-block: 9px;
+  }
+
+  .conversation-scroll {
+    padding-top: 17px;
+  }
+
+  .today-drawer {
+    padding-top: 17px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE — KEEP EXISTING MOBILE BEHAVIOR
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .frankie-home {
+    height: auto;
+    min-height: 100vh;
+
+    overflow-y: auto;
+  }
+
+  .frankie-sidebar {
+    width: 100%;
+    height: auto;
+    min-height: auto;
+
+    overflow: visible;
+
+    flex-direction: row;
+    align-items: center;
+
+    padding:
+      10px
+      12px;
+  }
+
+  .sidebar-brand {
+    padding: 0;
+  }
+
+  .workspace-context-area,
+  .frankie-nav {
+    display: none;
+  }
+
+  .sidebar-bottom {
+    margin: 0;
+
+    padding: 0;
+
+    border-top: 0;
+
+    flex-direction: row;
+  }
+
+  .frankie-workspace {
+    height: auto;
+    min-height: 0;
+
+    overflow: visible;
+  }
+
+  .workspace-body {
+    overflow: visible;
+  }
+
+  .conversation-panel {
+    overflow: visible;
+  }
+
+  .today-drawer {
+    height: auto;
+  }
+}
