@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import { FRANKIE_CORE_INSTRUCTIONS } from './frankie/core.js'
+import { FRANKIE_PERSONALITY_INSTRUCTIONS } from './frankie/personality.js'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -16,6 +17,12 @@ type OpenAIStreamEvent = {
   delta?: string
   message?: string
 }
+
+const FRANKIE_INSTRUCTIONS = `
+${FRANKIE_CORE_INSTRUCTIONS}
+
+${FRANKIE_PERSONALITY_INSTRUCTIONS}
+`
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -93,7 +100,7 @@ export default {
               effort: 'minimal',
             },
 
-            instructions: FRANKIE_CORE_INSTRUCTIONS,
+            instructions: FRANKIE_INSTRUCTIONS,
 
             input,
 
@@ -167,13 +174,17 @@ export default {
                   let event: OpenAIStreamEvent
 
                   try {
-                    event = JSON.parse(dataString) as OpenAIStreamEvent
+                    event =
+                      JSON.parse(
+                        dataString,
+                      ) as OpenAIStreamEvent
                   } catch {
                     continue
                   }
 
                   if (
-                    event.type === 'response.output_text.delta' &&
+                    event.type ===
+                      'response.output_text.delta' &&
                     typeof event.delta === 'string'
                   ) {
                     controller.enqueue(
