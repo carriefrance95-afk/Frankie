@@ -43,7 +43,7 @@ select {
 
 
 /* =========================================================
-   WELCOME
+   WELCOME PAGE
    ========================================================= */
 
 .frankie-welcome {
@@ -165,7 +165,7 @@ select {
 
 
 /* =========================================================
-   EMBERS
+   FLOATING EMBERS
    ========================================================= */
 
 .floating-embers {
@@ -246,7 +246,7 @@ select {
   margin: 0 auto;
 
   padding:
-    clamp(18px, 2.2vw, 32px)
+    8px
     clamp(32px, 6.5vw, 105px)
     0;
 
@@ -277,10 +277,16 @@ select {
 
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 
+  padding-top: 42px;
   padding-bottom: 20px;
 }
+
+
+/* =========================================================
+   FEATHER & FIRE LOGO
+   ========================================================= */
 
 .feather-fire-logo {
   display: block;
@@ -288,7 +294,7 @@ select {
   width: clamp(235px, 19vw, 320px);
   height: auto;
 
-  margin: 0 0 24px;
+  margin: 0 0 10px;
 
   object-fit: contain;
   object-position: left center;
@@ -298,8 +304,15 @@ select {
     drop-shadow(0 0 18px rgba(191, 114, 50, 0.08));
 }
 
+
+/* =========================================================
+   WELCOME CONVERSATION
+   ========================================================= */
+
 .welcome-conversation {
   max-width: 590px;
+
+  margin-top: 22px;
 }
 
 .welcome-title {
@@ -462,8 +475,7 @@ select {
 
   border-radius: 50%;
 
-  background:
-    rgba(220, 72, 19, 0.38);
+  background: rgba(220, 72, 19, 0.38);
 
   filter: blur(15px);
 }
@@ -526,7 +538,6 @@ select {
   position: absolute;
 
   left: 50%;
-
   bottom: 4%;
 
   width: 92%;
@@ -561,7 +572,6 @@ select {
   position: absolute;
 
   left: 50%;
-
   bottom: 7px;
 
   width: min(590px, 96%);
@@ -602,7 +612,6 @@ select {
   position: absolute;
 
   left: 50%;
-
   bottom: 26px;
 
   width: min(390px, 68%);
@@ -731,6 +740,10 @@ select {
     padding-inline: 46px;
   }
 
+  .welcome-content {
+    padding-top: 32px;
+  }
+
   .welcome-title {
     font-size: clamp(2.4rem, 4vw, 3.25rem);
   }
@@ -754,7 +767,7 @@ select {
     grid-template-columns: 1fr;
 
     padding:
-      34px
+      22px
       28px
       0;
 
@@ -764,17 +777,20 @@ select {
   .welcome-content {
     margin: 0 auto;
 
+    padding-top: 0;
     padding-bottom: 28px;
   }
 
   .feather-fire-logo {
     margin-inline: auto;
-
-    margin-bottom: 28px;
+    margin-bottom: 10px;
   }
 
   .welcome-conversation {
-    margin-inline: auto;
+    margin:
+      22px
+      auto
+      0;
   }
 
   .welcome-title {
@@ -819,6 +835,10 @@ select {
 
   .feather-fire-logo {
     width: 220px;
+  }
+
+  .welcome-conversation {
+    margin-top: 18px;
   }
 
   .welcome-title {
