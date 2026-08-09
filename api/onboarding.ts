@@ -13,20 +13,24 @@ type ChatMessage = {
 
 type OnboardingRequestBody = {
   messages?: ChatMessage[]
+
   knownContext?: {
     preferredName?: string | null
     timezone?: string | null
+
     businesses?: Array<{
       name: string
       businessType?: string | null
       description?: string | null
     }>
+
     currentPriority?: string | null
   }
 }
 
 type OpenAIOutputItem = {
   type?: string
+
   content?: Array<{
     type?: string
     text?: string
@@ -83,14 +87,19 @@ CORE INFORMATION TO LEARN:
 You do NOT need to complete every possible profile field.
 
 When onboarding is complete, Frankie's response should feel natural.
-For example, she can say she has enough to get started and will learn
-the rest while they work.
+She can say she has enough to get started and will learn the rest
+while they work.
 
-RESPONSE FORMAT:
+JSON RESPONSE REQUIREMENT:
 
-Return ONLY valid JSON.
+You MUST return a valid JSON object.
 
-Use exactly this structure:
+Return ONLY JSON.
+Do not use markdown.
+Do not use code fences.
+Do not add commentary before or after the JSON.
+
+Use exactly this JSON structure:
 
 {
   "reply": "Frankie's conversational response",
@@ -107,12 +116,14 @@ Rules for extracted data:
 
 - Only include information supported by the user's messages.
 - preferredName is the name the user wants Frankie to call them.
-- businesses must be an array of objects:
+- businesses must be an array of objects shaped like:
+
   {
     "name": "Business name",
     "businessType": null,
     "description": null
   }
+
 - Include businessType only when reasonably explicit.
 - Include description when the user explains what the business does.
 - primaryBusinessName is null unless the user identifies or clearly
@@ -152,7 +163,9 @@ function extractOutputText(
 }
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(
+    request: Request,
+  ): Promise<Response> {
     if (request.method !== 'POST') {
       return Response.json(
         {
@@ -164,14 +177,18 @@ export default {
       )
     }
 
-    const apiKey = process.env.OPENAI_API_KEY
+    const apiKey =
+      process.env.OPENAI_API_KEY
 
     if (!apiKey) {
-      console.error('OPENAI_API_KEY is missing')
+      console.error(
+        'OPENAI_API_KEY is missing',
+      )
 
       return Response.json(
         {
-          error: 'Frankie is not configured yet.',
+          error:
+            'Frankie is not configured yet.',
         },
         {
           status: 500,
@@ -183,17 +200,22 @@ export default {
       const body =
         (await request.json()) as OnboardingRequestBody
 
-      const messages = Array.isArray(body.messages)
-        ? body.messages
-        : []
+      const messages =
+        Array.isArray(body.messages)
+          ? body.messages
+          : []
 
-      const validMessages = messages.filter(
-        (message) =>
-          (message.role === 'user' ||
-            message.role === 'assistant') &&
-          typeof message.content === 'string' &&
-          message.content.trim().length > 0,
-      )
+      const validMessages =
+        messages.filter(
+          (message) =>
+            (message.role === 'user' ||
+              message.role ===
+                'assistant') &&
+            typeof message.content ===
+              'string' &&
+            message.content.trim()
+              .length > 0,
+        )
 
       const knownContext =
         body.knownContext ?? {}
@@ -201,11 +223,19 @@ export default {
       const contextMessage = `
 KNOWN ONBOARDING CONTEXT:
 
-${JSON.stringify(knownContext, null, 2)}
+${JSON.stringify(
+  knownContext,
+  null,
+  2,
+)}
 
 Use this context to avoid repeating questions.
+
 Do not claim the user told you something unless it appears here
 or in the conversation.
+
+Your response to this request MUST be valid JSON and MUST follow
+the JSON structure defined in the instructions.
 `
 
       const input = [
@@ -213,45 +243,57 @@ or in the conversation.
           role: 'developer',
           content: contextMessage,
         },
-        ...validMessages.map((message) => ({
-          role: message.role,
-          content: message.content.trim(),
-        })),
+
+        ...validMessages.map(
+          (message) => ({
+            role: message.role,
+
+            content:
+              message.content.trim(),
+          }),
+        ),
       ]
 
-      const openAIResponse = await fetch(
-        'https://api.openai.com/v1/responses',
-        {
-          method: 'POST',
+      const openAIResponse =
+        await fetch(
+          'https://api.openai.com/v1/responses',
+          {
+            method: 'POST',
 
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
+            headers: {
+              Authorization:
+                `Bearer ${apiKey}`,
 
-          body: JSON.stringify({
-            model: 'gpt-5-mini',
-
-            reasoning: {
-              effort: 'minimal',
+              'Content-Type':
+                'application/json',
             },
 
-            instructions: `
+            body: JSON.stringify({
+              model:
+                'gpt-5-mini',
+
+              reasoning: {
+                effort:
+                  'minimal',
+              },
+
+              instructions: `
 ${FRANKIE_CORE_INSTRUCTIONS}
 
 ${ONBOARDING_INSTRUCTIONS}
 `,
 
-            input,
+              input,
 
-            text: {
-              format: {
-                type: 'json_object',
+              text: {
+                format: {
+                  type:
+                    'json_object',
+                },
               },
-            },
-          }),
-        },
-      )
+            }),
+          },
+        )
 
       if (!openAIResponse.ok) {
         const errorText =
@@ -320,7 +362,9 @@ ${ONBOARDING_INSTRUCTIONS}
         )
       }
 
-      return Response.json(parsedResponse)
+      return Response.json(
+        parsedResponse,
+      )
     } catch (error) {
       console.error(
         'Frankie onboarding error:',
