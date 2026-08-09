@@ -1,6 +1,6 @@
 /// <reference types="node" />
 
-import { FRANKIE_CORE_INSTRUCTIONS } from './frankie/core'
+import { FRANKIE_CORE_INSTRUCTIONS } from './frankie/core.js'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
