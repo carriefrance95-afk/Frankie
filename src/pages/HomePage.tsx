@@ -30,11 +30,17 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null
 }
 
+type ChatApiResponse = {
+  reply?: string
+  error?: string
+}
+
 function HomePage() {
   const [message, setMessage] = useState('')
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [isListening, setIsListening] = useState(false)
   const [showToday, setShowToday] = useState(true)
+  const [isFrankieThinking, setIsFrankieThinking] = useState(false)
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -70,7 +76,7 @@ function HomePage() {
       behavior: 'smooth',
       block: 'nearest',
     })
-  }, [messages])
+  }, [messages, isFrankieThinking])
 
   useEffect(() => {
     return () => {
@@ -95,10 +101,10 @@ function HomePage() {
     window.speechSynthesis.speak(utterance)
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const trimmedMessage = message.trim()
 
-    if (!trimmedMessage) {
+    if (!trimmedMessage || isFrankieThinking) {
       return
     }
 
@@ -108,12 +114,47 @@ function HomePage() {
       text: trimmedMessage,
     }
 
-    setMessages((current) => [...current, userMessage])
-    setMessage('')
+    const updatedMessages = [...messages, userMessage]
 
-    window.setTimeout(() => {
-      const frankieReply =
-        "Got it. I'm listening. The real AI connection comes next, but this is the permanent conversation space we'll use to work together."
+    setMessages(updatedMessages)
+    setMessage('')
+    setIsFrankieThinking(true)
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          messages: updatedMessages.map((chatMessage) => ({
+            role:
+              chatMessage.role === 'frankie'
+                ? 'assistant'
+                : 'user',
+            content: chatMessage.text,
+          })),
+        }),
+      })
+
+      const data =
+        (await response.json()) as ChatApiResponse
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'Frankie could not respond.',
+        )
+      }
+
+      const frankieReply = data.reply?.trim()
+
+      if (!frankieReply) {
+        throw new Error(
+          'Frankie returned an empty response.',
+        )
+      }
 
       const reply: ChatMessage = {
         id: Date.now() + 1,
@@ -126,7 +167,23 @@ function HomePage() {
       if (voiceEnabled) {
         speakText(frankieReply)
       }
-    }, 500)
+    } catch (error) {
+      console.error('Frankie chat request failed:', error)
+
+      const fallbackReply: ChatMessage = {
+        id: Date.now() + 1,
+        role: 'frankie',
+        text:
+          "I hit a connection problem on my end. Give me a second and try that again.",
+      }
+
+      setMessages((current) => [
+        ...current,
+        fallbackReply,
+      ])
+    } finally {
+      setIsFrankieThinking(false)
+    }
   }
 
   const toggleListening = () => {
@@ -273,7 +330,9 @@ function HomePage() {
 
           <div className="workspace-status">
             <span className="status-dot" />
-            Frankie is ready
+            {isFrankieThinking
+              ? 'Frankie is thinking'
+              : 'Frankie is ready'}
           </div>
         </header>
 
@@ -327,6 +386,25 @@ function HomePage() {
                 </div>
               ))}
 
+              {isFrankieThinking && (
+                <div className="message-row frankie">
+                  <div className="frankie-avatar">
+                    <img
+                      src={frankieConversation}
+                      alt="Frankie"
+                    />
+                  </div>
+
+                  <div className="message-bubble frankie">
+                    <div className="message-heading">
+                      <strong>Frankie</strong>
+                    </div>
+
+                    <p>Thinking...</p>
+                  </div>
+                </div>
+              )}
+
               <div ref={conversationEndRef} />
             </div>
 
@@ -334,7 +412,7 @@ function HomePage() {
               className="frankie-composer"
               onSubmit={(event) => {
                 event.preventDefault()
-                handleSendMessage()
+                void handleSendMessage()
               }}
             >
               <button
@@ -357,10 +435,13 @@ function HomePage() {
               <textarea
                 value={message}
                 rows={1}
+                disabled={isFrankieThinking}
                 placeholder={
-                  isListening
-                    ? 'Listening...'
-                    : 'Ask Frankie anything...'
+                  isFrankieThinking
+                    ? 'Frankie is thinking...'
+                    : isListening
+                      ? 'Listening...'
+                      : 'Ask Frankie anything...'
                 }
                 onChange={(event) =>
                   setMessage(event.target.value)
@@ -371,7 +452,7 @@ function HomePage() {
                     !event.shiftKey
                   ) {
                     event.preventDefault()
-                    handleSendMessage()
+                    void handleSendMessage()
                   }
                 }}
               />
@@ -380,6 +461,7 @@ function HomePage() {
                 type="submit"
                 className="composer-send"
                 aria-label="Send message"
+                disabled={isFrankieThinking}
               >
                 ↑
               </button>
