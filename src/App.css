@@ -634,7 +634,7 @@ select {
   object-fit: contain;
   object-position: center bottom;
 
-  transform: translateY(4px);
+  transform: translateY(-18px);
 
   filter:
     drop-shadow(
