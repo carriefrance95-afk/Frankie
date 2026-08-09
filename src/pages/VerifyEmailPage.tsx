@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom'
 
-import frankie from '../assets/frankie/frankie-conversation.png'
+import frankie from '../assets/frankie/frankie-main.png'
 
 import './AuthPages.css'
 

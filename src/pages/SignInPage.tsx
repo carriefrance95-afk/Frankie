@@ -2,7 +2,7 @@ import type React from 'react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import frankie from '../assets/frankie/frankie-conversation.png'
+import frankie from '../assets/frankie/frankie-main.png'
 import { supabase } from '../lib/supabase'
 
 import './AuthPages.css'
