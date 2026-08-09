@@ -9,6 +9,7 @@ import {
 import AccountEntryPage from './pages/AccountEntryPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import HomePage from './pages/HomePage'
+import OnboardingGate from './pages/OnboardingGate'
 import OnboardingPage from './pages/OnboardingPage'
 import ProtectedRoute from './pages/ProtectedRoute'
 import SignInPage from './pages/SignInPage'
@@ -74,7 +75,9 @@ const router = createBrowserRouter([
     path: '/home',
     element: (
       <ProtectedRoute>
-        <HomePage />
+        <OnboardingGate>
+          <HomePage />
+        </OnboardingGate>
       </ProtectedRoute>
     ),
   },

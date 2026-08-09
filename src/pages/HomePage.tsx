@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+
+import { useNavigate } from 'react-router-dom'
 
 import frankieMain from '../assets/frankie/frankie-main.png'
 import frankieConversation from '../assets/frankie/frankie-conversation.png'
+import { supabase } from '../lib/supabase'
 
 import './HomeWorkspace.css'
 
@@ -27,12 +34,17 @@ type SpeechRecognitionLike = {
   lang: string
   start: () => void
   stop: () => void
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onresult:
+    | ((event: SpeechRecognitionEventLike) => void)
+    | null
   onend: (() => void) | null
   onerror: (() => void) | null
 }
 
-type ThemePreference = 'dark' | 'light' | 'system'
+type ThemePreference =
+  | 'dark'
+  | 'light'
+  | 'system'
 
 type WorkspaceContext = {
   id: string
@@ -40,29 +52,67 @@ type WorkspaceContext = {
   type: 'master' | 'business'
 }
 
-const THEME_STORAGE_KEY = 'frankie-workspace-theme'
+const THEME_STORAGE_KEY =
+  'frankie-workspace-theme'
 
 function HomePage() {
-  const [message, setMessage] = useState('')
-  const [voiceEnabled, setVoiceEnabled] = useState(false)
-  const [isListening, setIsListening] = useState(false)
-  const [showToday, setShowToday] = useState(true)
-  const [isFrankieThinking, setIsFrankieThinking] = useState(false)
+  const navigate = useNavigate()
 
-  const [themePreference, setThemePreference] =
+  const [message, setMessage] =
+    useState('')
+
+  const [
+    voiceEnabled,
+    setVoiceEnabled,
+  ] = useState(false)
+
+  const [
+    isListening,
+    setIsListening,
+  ] = useState(false)
+
+  const [
+    showToday,
+    setShowToday,
+  ] = useState(true)
+
+  const [
+    isFrankieThinking,
+    setIsFrankieThinking,
+  ] = useState(false)
+
+  const [
+    isSigningOut,
+    setIsSigningOut,
+  ] = useState(false)
+
+  const [
+    themePreference,
+    setThemePreference,
+  ] =
     useState<ThemePreference>('dark')
 
-  const [resolvedTheme, setResolvedTheme] =
-    useState<'dark' | 'light'>('dark')
+  const [
+    resolvedTheme,
+    setResolvedTheme,
+  ] =
+    useState<'dark' | 'light'>(
+      'dark',
+    )
 
-  const [selectedContextId, setSelectedContextId] =
-    useState('master')
+  const [
+    selectedContextId,
+    setSelectedContextId,
+  ] = useState('master')
 
   /*
-   * Real business profiles will eventually come from the database.
+   * Real business profiles will eventually
+   * come from Supabase.
+   *
    * Master View always exists.
    */
-  const workspaceContexts: WorkspaceContext[] = [
+  const workspaceContexts:
+    WorkspaceContext[] = [
     {
       id: 'master',
       name: 'Master View',
@@ -71,13 +121,16 @@ function HomePage() {
   ]
 
   /*
-   * These counts are placeholders until To-Do and Parking Lot
-   * are connected to persistent storage.
+   * Temporary counts until these are
+   * connected to persistent storage.
    */
-  const toDoCount: number = 0 
-  const parkingLotCount: number = 0 
+  const toDoCount: number = 0
+  const parkingLotCount: number = 0
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [
+    messages,
+    setMessages,
+  ] = useState<ChatMessage[]>([
     {
       id: 1,
       role: 'frankie',
@@ -92,24 +145,41 @@ function HomePage() {
     },
   ])
 
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const conversationEndRef = useRef<HTMLDivElement | null>(null)
+  const recognitionRef =
+    useRef<SpeechRecognitionLike | null>(
+      null,
+    )
+
+  const conversationEndRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    )
 
   const selectedContext =
     workspaceContexts.find(
-      (context) => context.id === selectedContextId,
+      (context) =>
+        context.id ===
+        selectedContextId,
     ) ?? workspaceContexts[0]
 
   const today = new Date()
 
-  const dayName = new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-  }).format(today)
+  const dayName =
+    new Intl.DateTimeFormat(
+      'en-US',
+      {
+        weekday: 'long',
+      },
+    ).format(today)
 
-  const monthAndDay = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-  }).format(today)
+  const monthAndDay =
+    new Intl.DateTimeFormat(
+      'en-US',
+      {
+        month: 'long',
+        day: 'numeric',
+      },
+    ).format(today)
 
   useEffect(() => {
     window.scrollTo({
@@ -118,40 +188,54 @@ function HomePage() {
       behavior: 'instant',
     })
 
-    document.documentElement.scrollTop = 0
+    document.documentElement.scrollTop =
+      0
+
     document.body.scrollTop = 0
   }, [])
 
   useEffect(() => {
-    const savedTheme = window.localStorage.getItem(
-      THEME_STORAGE_KEY,
-    ) as ThemePreference | null
+    const savedTheme =
+      window.localStorage.getItem(
+        THEME_STORAGE_KEY,
+      ) as ThemePreference | null
 
     if (
       savedTheme === 'dark' ||
       savedTheme === 'light' ||
       savedTheme === 'system'
     ) {
-      setThemePreference(savedTheme)
+      setThemePreference(
+        savedTheme,
+      )
     }
   }, [])
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(
-      '(prefers-color-scheme: dark)',
-    )
+    const mediaQuery =
+      window.matchMedia(
+        '(prefers-color-scheme: dark)',
+      )
 
-    const updateResolvedTheme = () => {
-      if (themePreference === 'system') {
+    const updateResolvedTheme =
+      () => {
+        if (
+          themePreference ===
+          'system'
+        ) {
+          setResolvedTheme(
+            mediaQuery.matches
+              ? 'dark'
+              : 'light',
+          )
+
+          return
+        }
+
         setResolvedTheme(
-          mediaQuery.matches ? 'dark' : 'light',
+          themePreference,
         )
-
-        return
       }
-
-      setResolvedTheme(themePreference)
-    }
 
     updateResolvedTheme()
 
@@ -169,20 +253,28 @@ function HomePage() {
   }, [themePreference])
 
   useEffect(() => {
-    conversationEndRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-    })
-  }, [messages, isFrankieThinking])
+    conversationEndRef.current?.scrollIntoView(
+      {
+        behavior: 'smooth',
+        block: 'nearest',
+      },
+    )
+  }, [
+    messages,
+    isFrankieThinking,
+  ])
 
   useEffect(() => {
     return () => {
       window.speechSynthesis?.cancel()
+
       recognitionRef.current?.stop()
     }
   }, [])
 
-  const changeTheme = (theme: ThemePreference) => {
+  const changeTheme = (
+    theme: ThemePreference,
+  ) => {
     setThemePreference(theme)
 
     window.localStorage.setItem(
@@ -191,238 +283,385 @@ function HomePage() {
     )
   }
 
-  const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
+  const speakText = (
+    text: string,
+  ) => {
+    if (
+      !(
+        'speechSynthesis' in
+        window
+      )
+    ) {
       return
     }
 
     window.speechSynthesis.cancel()
 
-    const utterance = new SpeechSynthesisUtterance(text)
+    const utterance =
+      new SpeechSynthesisUtterance(
+        text,
+      )
 
     utterance.rate = 0.96
     utterance.pitch = 1
     utterance.volume = 1
 
-    window.speechSynthesis.speak(utterance)
+    window.speechSynthesis.speak(
+      utterance,
+    )
   }
 
-  const handleSendMessage = async () => {
-    const trimmedMessage = message.trim()
-
-    if (!trimmedMessage || isFrankieThinking) {
-      return
-    }
-
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: 'user',
-      text: trimmedMessage,
-    }
-
-    const updatedMessages = [
-      ...messages,
-      userMessage,
-    ]
-
-    const frankieMessageId = Date.now() + 1
-
-    const streamingFrankieMessage: ChatMessage = {
-      id: frankieMessageId,
-      role: 'frankie',
-      text: '',
-    }
-
-    setMessages([
-      ...updatedMessages,
-      streamingFrankieMessage,
-    ])
-
-    setMessage('')
-    setIsFrankieThinking(true)
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-
-        headers: {
-          'Content-Type': 'application/json',
-        },
-
-        body: JSON.stringify({
-          messages: updatedMessages.map(
-            (chatMessage) => ({
-              role:
-                chatMessage.role === 'frankie'
-                  ? 'assistant'
-                  : 'user',
-
-              content: chatMessage.text,
-            }),
-          ),
-
-          workspaceContext: {
-            id: selectedContext.id,
-            name: selectedContext.name,
-            type: selectedContext.type,
-          },
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-
-        console.error(
-          'Frankie API error:',
-          response.status,
-          errorText,
-        )
-
-        throw new Error(
-          'Frankie could not respond.',
-        )
+  const handleSignOut =
+    async () => {
+      if (isSigningOut) {
+        return
       }
 
-      if (!response.body) {
-        throw new Error(
-          'Frankie returned no response stream.',
-        )
-      }
+      setIsSigningOut(true)
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
+      try {
+        window.speechSynthesis?.cancel()
 
-      let fullReply = ''
+        recognitionRef.current?.stop()
 
-      while (true) {
-        const { done, value } = await reader.read()
+        const { error } =
+          await supabase.auth.signOut()
 
-        if (done) {
-          break
+        if (error) {
+          console.error(
+            'Frankie sign out error:',
+            error,
+          )
+
+          window.alert(
+            'I had trouble signing you out. Try again.',
+          )
+
+          return
         }
 
-        const chunk = decoder.decode(value, {
-          stream: true,
+        navigate('/signin', {
+          replace: true,
         })
+      } catch (error) {
+        console.error(
+          'Frankie sign out failed:',
+          error,
+        )
 
-        if (!chunk) {
-          continue
+        window.alert(
+          'I had trouble signing you out. Try again.',
+        )
+      } finally {
+        setIsSigningOut(false)
+      }
+    }
+
+  const handleSendMessage =
+    async () => {
+      const trimmedMessage =
+        message.trim()
+
+      if (
+        !trimmedMessage ||
+        isFrankieThinking
+      ) {
+        return
+      }
+
+      const userMessage:
+        ChatMessage = {
+        id: Date.now(),
+        role: 'user',
+        text: trimmedMessage,
+      }
+
+      const updatedMessages = [
+        ...messages,
+        userMessage,
+      ]
+
+      const frankieMessageId =
+        Date.now() + 1
+
+      const streamingFrankieMessage:
+        ChatMessage = {
+        id: frankieMessageId,
+        role: 'frankie',
+        text: '',
+      }
+
+      setMessages([
+        ...updatedMessages,
+        streamingFrankieMessage,
+      ])
+
+      setMessage('')
+
+      setIsFrankieThinking(
+        true,
+      )
+
+      try {
+        const response =
+          await fetch(
+            '/api/chat',
+            {
+              method: 'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body: JSON.stringify({
+                messages:
+                  updatedMessages.map(
+                    (
+                      chatMessage,
+                    ) => ({
+                      role:
+                        chatMessage.role ===
+                        'frankie'
+                          ? 'assistant'
+                          : 'user',
+
+                      content:
+                        chatMessage.text,
+                    }),
+                  ),
+
+                workspaceContext: {
+                  id:
+                    selectedContext.id,
+
+                  name:
+                    selectedContext.name,
+
+                  type:
+                    selectedContext.type,
+                },
+              }),
+            },
+          )
+
+        if (!response.ok) {
+          const errorText =
+            await response.text()
+
+          console.error(
+            'Frankie API error:',
+            response.status,
+            errorText,
+          )
+
+          throw new Error(
+            'Frankie could not respond.',
+          )
         }
 
-        fullReply += chunk
+        if (!response.body) {
+          throw new Error(
+            'Frankie returned no response stream.',
+          )
+        }
 
-        setMessages((current) =>
-          current.map((chatMessage) =>
-            chatMessage.id === frankieMessageId
-              ? {
-                  ...chatMessage,
-                  text: fullReply,
-                }
-              : chatMessage,
-          ),
+        const reader =
+          response.body.getReader()
+
+        const decoder =
+          new TextDecoder()
+
+        let fullReply = ''
+
+        while (true) {
+          const {
+            done,
+            value,
+          } =
+            await reader.read()
+
+          if (done) {
+            break
+          }
+
+          const chunk =
+            decoder.decode(
+              value,
+              {
+                stream: true,
+              },
+            )
+
+          if (!chunk) {
+            continue
+          }
+
+          fullReply += chunk
+
+          setMessages(
+            (current) =>
+              current.map(
+                (
+                  chatMessage,
+                ) =>
+                  chatMessage.id ===
+                  frankieMessageId
+                    ? {
+                        ...chatMessage,
+                        text:
+                          fullReply,
+                      }
+                    : chatMessage,
+              ),
+          )
+        }
+
+        fullReply +=
+          decoder.decode()
+
+        const finalReply =
+          fullReply.trim()
+
+        if (!finalReply) {
+          throw new Error(
+            'Frankie returned an empty response.',
+          )
+        }
+
+        setMessages(
+          (current) =>
+            current.map(
+              (
+                chatMessage,
+              ) =>
+                chatMessage.id ===
+                frankieMessageId
+                  ? {
+                      ...chatMessage,
+                      text:
+                        finalReply,
+                    }
+                  : chatMessage,
+            ),
+        )
+
+        if (voiceEnabled) {
+          speakText(
+            finalReply,
+          )
+        }
+      } catch (error) {
+        console.error(
+          'Frankie chat request failed:',
+          error,
+        )
+
+        setMessages(
+          (current) =>
+            current.map(
+              (
+                chatMessage,
+              ) =>
+                chatMessage.id ===
+                frankieMessageId
+                  ? {
+                      ...chatMessage,
+
+                      text:
+                        "I hit a connection problem on my end. Give me a second and try that again.",
+                    }
+                  : chatMessage,
+            ),
+        )
+      } finally {
+        setIsFrankieThinking(
+          false,
+        )
+      }
+    }
+
+  const toggleListening =
+    () => {
+      if (isListening) {
+        recognitionRef.current?.stop()
+
+        setIsListening(false)
+
+        return
+      }
+
+      const browserWindow =
+        window as typeof window & {
+          SpeechRecognition?:
+            new () => SpeechRecognitionLike
+
+          webkitSpeechRecognition?:
+            new () => SpeechRecognitionLike
+        }
+
+      const RecognitionConstructor =
+        browserWindow.SpeechRecognition ||
+        browserWindow.webkitSpeechRecognition
+
+      if (
+        !RecognitionConstructor
+      ) {
+        window.alert(
+          'Voice input is not supported in this browser yet. You can still type to Frankie.',
+        )
+
+        return
+      }
+
+      const recognition =
+        new RecognitionConstructor()
+
+      recognition.continuous =
+        false
+
+      recognition.interimResults =
+        false
+
+      recognition.lang =
+        'en-US'
+
+      recognition.onresult = (
+        event,
+      ) => {
+        const transcript =
+          event.results[0][0]
+            .transcript
+
+        setMessage(
+          (current) =>
+            current
+              ? `${current} ${transcript}`
+              : transcript,
         )
       }
 
-      fullReply += decoder.decode()
+      recognition.onend =
+        () => {
+          setIsListening(
+            false,
+          )
+        }
 
-      const finalReply = fullReply.trim()
+      recognition.onerror =
+        () => {
+          setIsListening(
+            false,
+          )
+        }
 
-      if (!finalReply) {
-        throw new Error(
-          'Frankie returned an empty response.',
-        )
-      }
+      recognitionRef.current =
+        recognition
 
-      setMessages((current) =>
-        current.map((chatMessage) =>
-          chatMessage.id === frankieMessageId
-            ? {
-                ...chatMessage,
-                text: finalReply,
-              }
-            : chatMessage,
-        ),
-      )
+      setIsListening(true)
 
-      if (voiceEnabled) {
-        speakText(finalReply)
-      }
-    } catch (error) {
-      console.error(
-        'Frankie chat request failed:',
-        error,
-      )
-
-      setMessages((current) =>
-        current.map((chatMessage) =>
-          chatMessage.id === frankieMessageId
-            ? {
-                ...chatMessage,
-                text:
-                  "I hit a connection problem on my end. Give me a second and try that again.",
-              }
-            : chatMessage,
-        ),
-      )
-    } finally {
-      setIsFrankieThinking(false)
+      recognition.start()
     }
-  }
-
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-      setIsListening(false)
-      return
-    }
-
-    const browserWindow = window as typeof window & {
-      SpeechRecognition?: new () => SpeechRecognitionLike
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike
-    }
-
-    const RecognitionConstructor =
-      browserWindow.SpeechRecognition ||
-      browserWindow.webkitSpeechRecognition
-
-    if (!RecognitionConstructor) {
-      window.alert(
-        'Voice input is not supported in this browser yet. You can still type to Frankie.',
-      )
-
-      return
-    }
-
-    const recognition = new RecognitionConstructor()
-
-    recognition.continuous = false
-    recognition.interimResults = false
-    recognition.lang = 'en-US'
-
-    recognition.onresult = (event) => {
-      const transcript =
-        event.results[0][0].transcript
-
-      setMessage((current) =>
-        current
-          ? `${current} ${transcript}`
-          : transcript,
-      )
-    }
-
-    recognition.onend = () => {
-      setIsListening(false)
-    }
-
-    recognition.onerror = () => {
-      setIsListening(false)
-    }
-
-    recognitionRef.current = recognition
-
-    setIsListening(true)
-    recognition.start()
-  }
 
   const navigationItems = [
     {
@@ -430,43 +669,56 @@ function HomePage() {
       symbol: '◷',
       count: null,
     },
+
     {
       label: 'Email',
       symbol: '✉',
       count: null,
     },
+
     {
       label: 'Calendar',
       symbol: '▣',
       count: null,
     },
+
     {
       label: 'To-Do',
       symbol: '✓',
       count: toDoCount,
     },
+
     {
       label: 'Parking Lot',
       symbol: '◇',
-      count: parkingLotCount,
+      count:
+        parkingLotCount,
     },
+
     {
-      label: 'Business Kit',
+      label:
+        'Business Kit',
+
       symbol: '▦',
       count: null,
     },
+
     {
       label: 'Files',
       symbol: '⌑',
       count: null,
     },
+
     {
       label: 'Reports',
       symbol: '↗',
       count: null,
     },
+
     {
-      label: 'Connections',
+      label:
+        'Connections',
+
       symbol: '⌁',
       count: null,
     },
@@ -475,9 +727,12 @@ function HomePage() {
   return (
     <main
       className="frankie-home"
-      data-workspace-theme={resolvedTheme}
+      data-workspace-theme={
+        resolvedTheme
+      }
     >
       <div className="home-ember home-ember-one" />
+
       <div className="home-ember home-ember-two" />
 
       <aside className="frankie-sidebar">
@@ -491,8 +746,13 @@ function HomePage() {
           </div>
 
           <div>
-            <strong>Frankie</strong>
-            <span>Feather &amp; Fire</span>
+            <strong>
+              Frankie
+            </strong>
+
+            <span>
+              Feather &amp; Fire
+            </span>
           </div>
         </div>
 
@@ -508,27 +768,43 @@ function HomePage() {
 
             <select
               className="context-select"
-              value={selectedContextId}
-              onChange={(event) =>
+              value={
+                selectedContextId
+              }
+              onChange={(
+                event,
+              ) =>
                 setSelectedContextId(
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               aria-label="Select business workspace"
             >
-              {workspaceContexts.map((context) => (
-                <option
-                  key={context.id}
-                  value={context.id}
-                >
-                  {context.name}
-                </option>
-              ))}
+              {workspaceContexts.map(
+                (
+                  context,
+                ) => (
+                  <option
+                    key={
+                      context.id
+                    }
+                    value={
+                      context.id
+                    }
+                  >
+                    {
+                      context.name
+                    }
+                  </option>
+                ),
+              )}
             </select>
           </div>
 
           <p className="context-helper">
-            All businesses, one view.
+            All businesses, one
+            view.
           </p>
         </div>
 
@@ -536,52 +812,78 @@ function HomePage() {
           className="frankie-nav"
           aria-label="Frankie workspace"
         >
-          {navigationItems.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              className={
-                item.label === 'Today'
-                  ? 'frankie-nav-item active'
-                  : 'frankie-nav-item'
-              }
-              onClick={() => {
-                if (item.label === 'Today') {
-                  setShowToday(
-                    (current) => !current,
-                  )
+          {navigationItems.map(
+            (item) => (
+              <button
+                key={
+                  item.label
                 }
-              }}
-            >
-              <span className="nav-symbol">
-                {item.symbol}
-              </span>
+                type="button"
+                className={
+                  item.label ===
+                  'Today'
+                    ? 'frankie-nav-item active'
+                    : 'frankie-nav-item'
+                }
+                onClick={() => {
+                  if (
+                    item.label ===
+                    'Today'
+                  ) {
+                    setShowToday(
+                      (
+                        current,
+                      ) =>
+                        !current,
+                    )
+                  }
+                }}
+              >
+                <span className="nav-symbol">
+                  {
+                    item.symbol
+                  }
+                </span>
 
-              <span className="nav-label">
-                {item.label}
-              </span>
+                <span className="nav-label">
+                  {
+                    item.label
+                  }
+                </span>
 
-              {typeof item.count === 'number' &&
-                item.count > 0 && (
-                  <span className="nav-count">
-                    {item.count}
-                  </span>
-                )}
-            </button>
-          ))}
+                {typeof item.count ===
+                  'number' &&
+                  item.count >
+                    0 && (
+                    <span className="nav-count">
+                      {
+                        item.count
+                      }
+                    </span>
+                  )}
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="sidebar-bottom">
           <div className="appearance-setting">
             <div className="appearance-heading">
-              <span>◐</span>
+              <span>
+                ◐
+              </span>
 
               <div>
-                <strong>Appearance</strong>
+                <strong>
+                  Appearance
+                </strong>
+
                 <small>
-                  {themePreference === 'system'
+                  {themePreference ===
+                  'system'
                     ? 'System'
-                    : themePreference === 'light'
+                    : themePreference ===
+                        'light'
                       ? 'Light'
                       : 'Dark'}
                 </small>
@@ -595,12 +897,15 @@ function HomePage() {
               <button
                 type="button"
                 className={
-                  themePreference === 'dark'
+                  themePreference ===
+                  'dark'
                     ? 'theme-option active'
                     : 'theme-option'
                 }
                 onClick={() =>
-                  changeTheme('dark')
+                  changeTheme(
+                    'dark',
+                  )
                 }
                 title="Dark"
               >
@@ -610,12 +915,15 @@ function HomePage() {
               <button
                 type="button"
                 className={
-                  themePreference === 'light'
+                  themePreference ===
+                  'light'
                     ? 'theme-option active'
                     : 'theme-option'
                 }
                 onClick={() =>
-                  changeTheme('light')
+                  changeTheme(
+                    'light',
+                  )
                 }
                 title="Light"
               >
@@ -625,12 +933,15 @@ function HomePage() {
               <button
                 type="button"
                 className={
-                  themePreference === 'system'
+                  themePreference ===
+                  'system'
                     ? 'theme-option active'
                     : 'theme-option'
                 }
                 onClick={() =>
-                  changeTheme('system')
+                  changeTheme(
+                    'system',
+                  )
                 }
                 title="Use system setting"
               >
@@ -644,16 +955,23 @@ function HomePage() {
             className="voice-setting"
             onClick={() => {
               setVoiceEnabled(
-                (current) => !current,
+                (
+                  current,
+                ) =>
+                  !current,
               )
 
-              if (voiceEnabled) {
+              if (
+                voiceEnabled
+              ) {
                 window.speechSynthesis?.cancel()
               }
             }}
           >
             <span>
-              {voiceEnabled ? '◉' : '○'}
+              {voiceEnabled
+                ? '◉'
+                : '○'}
             </span>
 
             <div>
@@ -662,7 +980,9 @@ function HomePage() {
               </strong>
 
               <small>
-                {voiceEnabled ? 'On' : 'Off'}
+                {voiceEnabled
+                  ? 'On'
+                  : 'Off'}
               </small>
             </div>
           </button>
@@ -677,6 +997,25 @@ function HomePage() {
               Settings
             </span>
           </button>
+
+          <button
+            type="button"
+            className="settings-button"
+            disabled={
+              isSigningOut
+            }
+            onClick={() => {
+              void handleSignOut()
+            }}
+          >
+            ↪
+
+            <span>
+              {isSigningOut
+                ? 'Signing Out...'
+                : 'Sign Out'}
+            </span>
+          </button>
         </div>
       </aside>
 
@@ -684,7 +1023,8 @@ function HomePage() {
         <header className="workspace-header">
           <div>
             <p className="workspace-kicker">
-              {selectedContext.type === 'master'
+              {selectedContext.type ===
+              'master'
                 ? 'MASTER VIEW'
                 : selectedContext.name.toUpperCase()}
             </p>
@@ -696,7 +1036,10 @@ function HomePage() {
 
           <div className="workspace-header-right">
             <span className="current-context-pill">
-              ✦ {selectedContext.name}
+              ✦{' '}
+              {
+                selectedContext.name
+              }
             </span>
 
             <div className="workspace-status">
@@ -722,62 +1065,80 @@ function HomePage() {
                 TODAY
               </div>
 
-              {messages.map((chatMessage) => (
-                <div
-                  key={chatMessage.id}
-                  className={`message-row ${chatMessage.role}`}
-                >
-                  {chatMessage.role === 'frankie' && (
-                    <div className="frankie-avatar">
-                      <img
-                        src={frankieConversation}
-                        alt="Frankie"
-                      />
-                    </div>
-                  )}
-
+              {messages.map(
+                (
+                  chatMessage,
+                ) => (
                   <div
-                    className={`message-bubble ${chatMessage.role}`}
+                    key={
+                      chatMessage.id
+                    }
+                    className={`message-row ${chatMessage.role}`}
                   >
-                    {chatMessage.role === 'frankie' && (
-                      <div className="message-heading">
-                        <strong>
-                          Frankie
-                        </strong>
-
-                        {chatMessage.text && (
-                          <button
-                            type="button"
-                            className="speak-message"
-                            aria-label="Read Frankie response aloud"
-                            onClick={() =>
-                              speakText(
-                                chatMessage.text,
-                              )
-                            }
-                          >
-                            ◖))
-                          </button>
-                        )}
+                    {chatMessage.role ===
+                      'frankie' && (
+                      <div className="frankie-avatar">
+                        <img
+                          src={
+                            frankieConversation
+                          }
+                          alt="Frankie"
+                        />
                       </div>
                     )}
 
-                    <p>
-                      {chatMessage.role === 'frankie' &&
-                      chatMessage.text === ''
-                        ? 'Thinking...'
-                        : chatMessage.text}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                    <div
+                      className={`message-bubble ${chatMessage.role}`}
+                    >
+                      {chatMessage.role ===
+                        'frankie' && (
+                        <div className="message-heading">
+                          <strong>
+                            Frankie
+                          </strong>
 
-              <div ref={conversationEndRef} />
+                          {chatMessage.text && (
+                            <button
+                              type="button"
+                              className="speak-message"
+                              aria-label="Read Frankie response aloud"
+                              onClick={() =>
+                                speakText(
+                                  chatMessage.text,
+                                )
+                              }
+                            >
+                              ◖))
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <p>
+                        {chatMessage.role ===
+                          'frankie' &&
+                        chatMessage.text ===
+                          ''
+                          ? 'Thinking...'
+                          : chatMessage.text}
+                      </p>
+                    </div>
+                  </div>
+                ),
+              )}
+
+              <div
+                ref={
+                  conversationEndRef
+                }
+              />
             </div>
 
             <form
               className="frankie-composer"
-              onSubmit={(event) => {
+              onSubmit={(
+                event,
+              ) => {
                 event.preventDefault()
 
                 void handleSendMessage()
@@ -795,30 +1156,47 @@ function HomePage() {
                     ? 'Stop listening'
                     : 'Talk to Frankie'
                 }
-                onClick={toggleListening}
+                onClick={
+                  toggleListening
+                }
               >
-                {isListening ? '■' : '●'}
+                {isListening
+                  ? '■'
+                  : '●'}
               </button>
 
               <textarea
-                value={message}
+                value={
+                  message
+                }
                 rows={1}
-                disabled={isFrankieThinking}
+                disabled={
+                  isFrankieThinking
+                }
                 placeholder={
                   isFrankieThinking
                     ? 'Frankie is responding...'
                     : isListening
                       ? 'Listening...'
-                      : selectedContext.type === 'master'
+                      : selectedContext.type ===
+                          'master'
                         ? 'Ask Frankie anything across your businesses...'
                         : `Ask Frankie about ${selectedContext.name}...`
                 }
-                onChange={(event) =>
-                  setMessage(event.target.value)
+                onChange={(
+                  event,
+                ) =>
+                  setMessage(
+                    event.target
+                      .value,
+                  )
                 }
-                onKeyDown={(event) => {
+                onKeyDown={(
+                  event,
+                ) => {
                   if (
-                    event.key === 'Enter' &&
+                    event.key ===
+                      'Enter' &&
                     !event.shiftKey
                   ) {
                     event.preventDefault()
@@ -832,14 +1210,18 @@ function HomePage() {
                 type="submit"
                 className="composer-send"
                 aria-label="Send message"
-                disabled={isFrankieThinking}
+                disabled={
+                  isFrankieThinking
+                }
               >
                 ↑
               </button>
             </form>
 
             <div className="composer-hint">
-              Press Enter to send · Shift + Enter for a new line
+              Press Enter to send ·
+              Shift + Enter for a
+              new line
             </div>
           </section>
 
@@ -861,7 +1243,9 @@ function HomePage() {
                   className="close-today"
                   aria-label="Close today panel"
                   onClick={() =>
-                    setShowToday(false)
+                    setShowToday(
+                      false,
+                    )
                   }
                 >
                   ×
@@ -869,7 +1253,9 @@ function HomePage() {
               </div>
 
               <div className="today-context">
-                {selectedContext.name}
+                {
+                  selectedContext.name
+                }
               </div>
 
               <div className="today-date">
@@ -878,7 +1264,9 @@ function HomePage() {
                 </strong>
 
                 <span>
-                  {monthAndDay}
+                  {
+                    monthAndDay
+                  }
                 </span>
               </div>
 
@@ -899,14 +1287,16 @@ function HomePage() {
                   </span>
 
                   <strong>
-                    Calendar not connected yet
+                    Calendar not
+                    connected yet
                   </strong>
 
                   <p>
-                    Once connected, Frankie will
-                    combine the calendars you
-                    authorize and keep this view
-                    current.
+                    Once connected,
+                    Frankie will combine
+                    the calendars you
+                    authorize and keep
+                    this view current.
                   </p>
                 </div>
               </div>
@@ -927,7 +1317,8 @@ function HomePage() {
                 </div>
               </div>
 
-              {parkingLotCount > 0 && (
+              {parkingLotCount >
+                0 && (
                 <div className="today-section">
                   <div className="today-section-title">
                     <span>
@@ -940,8 +1331,11 @@ function HomePage() {
                   </div>
 
                   <div className="today-mini-empty">
-                    {parkingLotCount}{' '}
-                    {parkingLotCount === 1
+                    {
+                      parkingLotCount
+                    }{' '}
+                    {parkingLotCount ===
+                    1
                       ? 'idea parked'
                       : 'ideas parked'}
                   </div>
@@ -960,13 +1354,17 @@ function HomePage() {
 
                   <div>
                     <strong>
-                      Connect your business tools
+                      Connect your
+                      business tools
                     </strong>
 
                     <p>
-                      Email, calendars, Business
-                      Kits and files will eventually
-                      feed Frankie's Master View.
+                      Email, calendars,
+                      Business Kits and
+                      files will
+                      eventually feed
+                      Frankie's Master
+                      View.
                     </p>
                   </div>
                 </div>
@@ -981,7 +1379,8 @@ function HomePage() {
                   )
                 }
               >
-                Ask Frankie about my day
+                Ask Frankie about my
+                day
               </button>
             </aside>
           )}
