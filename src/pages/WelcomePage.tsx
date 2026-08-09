@@ -1,16 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 
 import featherFireLogo from '../assets/feather-fire-logo.png'
-import frankie from '../assets/frankie.png'
+import frankie from '../assets/frankie/frankie-main.png'
 
 function WelcomePage() {
   const navigate = useNavigate()
 
   return (
-    <main className="frankie-welcome">
-      <div className="welcome-ember-glow welcome-ember-glow-left" />
-      <div className="welcome-ember-glow welcome-ember-glow-right" />
-
+    <main className="welcome-page">
       <div className="floating-embers" aria-hidden="true">
         <span />
         <span />
@@ -29,56 +26,61 @@ function WelcomePage() {
             alt="Feather & Fire"
           />
 
-          <div className="welcome-heading">
-            <p className="welcome-eyebrow">WELCOME TO</p>
+          <div className="welcome-conversation">
+            <h1 className="welcome-title">
+              Hi. I&apos;m Frankie.
+            </h1>
 
-            <h1 className="welcome-title">Frankie</h1>
+            <div className="ember-divider" />
 
-            <p className="welcome-tagline">
-              The Entrepreneur&apos;s Operating System
+            <p className="welcome-opening">
+              Running a business can be a lot.
             </p>
+
+            <div className="welcome-rhythm">
+              <p>Too much to remember.</p>
+              <p>Too many things competing for your attention.</p>
+              <p>Too many tabs open — literally and mentally.</p>
+            </div>
+
+            <p className="welcome-emphasis">
+              That&apos;s where I come in.
+            </p>
+
+            <p className="welcome-body">
+              I&apos;ll help you keep track of what matters, organize the chaos,
+              and stay ahead of what&apos;s coming next.
+            </p>
+
+            <p className="welcome-final-line">
+              <strong>
+                You run the business. I&apos;ll help you keep it together.
+              </strong>
+            </p>
+
+            <button
+              type="button"
+              className="fire-button"
+              onClick={() => navigate('/home')}
+            >
+              <span className="fire-button-spark">✦</span>
+              <span>Let&apos;s Get Started</span>
+            </button>
           </div>
-
-          <div className="ember-divider" />
-
-          <div className="welcome-intro">
-            <p>
-              Hi! I&apos;m Frankie. I&apos;m here to help you organize your
-              business, simplify your day, and stay focused on what matters
-              most.
-            </p>
-
-            <p>
-              We don&apos;t have to figure everything out today.
-              <br />
-              We&apos;ll build this together.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="fire-button"
-            onClick={() => navigate('/home')}
-          >
-            <span className="fire-button-spark">✦</span>
-            <span>Let&apos;s Get Started</span>
-          </button>
         </div>
 
         <div className="frankie-stage" aria-label="Frankie">
-          <div className="frankie-aura" />
-          <div className="frankie-floor-glow" />
+          <div className="frankie-aura" aria-hidden="true" />
+
+          <div className="frankie-floor-glow" aria-hidden="true" />
+
+          <div className="frankie-contact-glow" aria-hidden="true" />
 
           <img
             className="frankie-character"
             src={frankie}
-            alt="Frankie, your entrepreneurial operating partner"
+            alt="Frankie"
           />
-
-          <div className="frankie-whisper">
-            <span>We&apos;ll figure it out.</span>
-            <strong>Together.</strong>
-          </div>
         </div>
       </section>
 

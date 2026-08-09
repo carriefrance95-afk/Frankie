@@ -41,13 +41,16 @@ select {
   font: inherit;
 }
 
+
 /* =========================================================
-   FRANKIE — WELCOME
+   WELCOME
    ========================================================= */
 
 .frankie-welcome {
   position: relative;
+
   min-height: 100vh;
+
   overflow: hidden;
   isolation: isolate;
 
@@ -81,9 +84,12 @@ select {
 
 .frankie-welcome::before {
   content: "";
+
   position: absolute;
   inset: 0;
+
   z-index: -5;
+
   pointer-events: none;
 
   background:
@@ -98,14 +104,18 @@ select {
     );
 
   background-size: 70px 70px;
+
   opacity: 0.28;
 }
 
 .frankie-welcome::after {
   content: "";
+
   position: absolute;
   inset: 0;
+
   z-index: -4;
+
   pointer-events: none;
 
   background:
@@ -116,33 +126,43 @@ select {
     );
 }
 
+
 /* =========================================================
-   AMBIENT FIRE
+   AMBIENT GLOW
    ========================================================= */
 
 .welcome-ember-glow {
   position: absolute;
+
   border-radius: 50%;
+
   pointer-events: none;
+
   filter: blur(90px);
+
   z-index: -2;
 }
 
 .welcome-ember-glow-left {
-  width: 360px;
-  height: 360px;
-  left: -190px;
-  top: 27%;
-  background: rgba(167, 75, 29, 0.12);
+  width: 340px;
+  height: 340px;
+
+  left: -170px;
+  top: 24%;
+
+  background: rgba(167, 75, 29, 0.11);
 }
 
 .welcome-ember-glow-right {
   width: 620px;
   height: 620px;
+
   right: -125px;
   top: 6%;
+
   background: rgba(211, 67, 20, 0.14);
 }
+
 
 /* =========================================================
    EMBERS
@@ -151,15 +171,20 @@ select {
 .floating-embers {
   position: absolute;
   inset: 0;
+
   z-index: 0;
+
   pointer-events: none;
 }
 
 .floating-embers span {
   position: absolute;
+
   width: 3px;
   height: 3px;
+
   border-radius: 50%;
+
   background: #ed9447;
 
   box-shadow:
@@ -204,32 +229,40 @@ select {
   top: 27%;
 }
 
+
 /* =========================================================
    MAIN STAGE
    ========================================================= */
 
 .welcome-stage {
   position: relative;
+
   z-index: 2;
 
   flex: 1;
 
   width: min(1480px, 100%);
+
   margin: 0 auto;
 
   padding:
-    clamp(34px, 4.5vw, 68px)
+    clamp(18px, 2.2vw, 32px)
     clamp(32px, 6.5vw, 105px)
-    30px;
+    0;
 
   display: grid;
+
   grid-template-columns:
-    minmax(520px, 0.96fr)
+    minmax(500px, 0.96fr)
     minmax(480px, 1.04fr);
 
-  align-items: center;
-  gap: clamp(25px, 4vw, 72px);
+  align-items: stretch;
+
+  gap: clamp(24px, 4vw, 68px);
+
+  min-height: 0;
 }
+
 
 /* =========================================================
    LEFT SIDE
@@ -237,17 +270,25 @@ select {
 
 .welcome-content {
   position: relative;
+
   z-index: 5;
-  max-width: 670px;
+
+  max-width: 620px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  padding-bottom: 20px;
 }
 
 .feather-fire-logo {
   display: block;
 
-  width: clamp(225px, 19vw, 315px);
+  width: clamp(235px, 19vw, 320px);
   height: auto;
 
-  margin: 0 0 clamp(34px, 4vw, 54px);
+  margin: 0 0 24px;
 
   object-fit: contain;
   object-position: left center;
@@ -257,19 +298,8 @@ select {
     drop-shadow(0 0 18px rgba(191, 114, 50, 0.08));
 }
 
-.welcome-heading {
-  position: relative;
-}
-
-.welcome-eyebrow {
-  margin: 0 0 8px;
-
-  color: #d69a51;
-
-  font-size: 0.78rem;
-  font-weight: 800;
-
-  letter-spacing: 0.36em;
+.welcome-conversation {
+  max-width: 590px;
 }
 
 .welcome-title {
@@ -282,41 +312,24 @@ select {
     "Times New Roman",
     serif;
 
-  font-size: clamp(5.2rem, 7.7vw, 8.5rem);
+  font-size: clamp(2.65rem, 3.4vw, 3.85rem);
+
   font-weight: 500;
 
-  line-height: 0.88;
-  letter-spacing: -0.055em;
+  line-height: 1.03;
+
+  letter-spacing: -0.035em;
 
   text-shadow:
     0 9px 32px rgba(0, 0, 0, 0.48),
     0 0 45px rgba(212, 139, 61, 0.045);
 }
 
-.welcome-tagline {
-  margin: 24px 0 0;
-
-  color: #d1a15b;
-
-  font-family:
-    Georgia,
-    "Times New Roman",
-    serif;
-
-  font-size: clamp(1.25rem, 1.75vw, 1.72rem);
-  font-weight: 600;
-
-  line-height: 1.2;
-  letter-spacing: 0.01em;
-
-  white-space: nowrap;
-}
-
 .ember-divider {
   width: 54px;
   height: 2px;
 
-  margin: 34px 0 27px;
+  margin: 22px 0 24px;
 
   border-radius: 999px;
 
@@ -331,31 +344,62 @@ select {
     0 0 14px rgba(208, 104, 40, 0.43);
 }
 
-.welcome-intro {
-  max-width: 625px;
+.welcome-opening,
+.welcome-body,
+.welcome-rhythm p,
+.welcome-emphasis,
+.welcome-final-line {
+  max-width: 560px;
+
+  margin: 0;
 
   color: #c6bdb0;
 
-  font-size: clamp(0.98rem, 1.08vw, 1.08rem);
-  line-height: 1.72;
+  font-size: clamp(0.95rem, 0.95vw, 1.03rem);
+
+  line-height: 1.58;
 }
 
-.welcome-intro p {
-  margin: 0;
+.welcome-rhythm {
+  margin-top: 15px;
 }
 
-.welcome-intro p + p {
+.welcome-rhythm p + p {
+  margin-top: 3px;
+}
+
+.welcome-emphasis {
   margin-top: 18px;
+
+  color: #e9d9c4;
+
+  font-weight: 700;
 }
+
+.welcome-body {
+  margin-top: 15px;
+}
+
+.welcome-final-line {
+  margin-top: 18px;
+
+  color: #f0e2cf;
+}
+
+.welcome-final-line strong {
+  font-weight: 700;
+}
+
 
 /* =========================================================
-   FIRE BUTTON
+   BUTTON
    ========================================================= */
 
 .fire-button {
   position: relative;
 
   display: inline-flex;
+
   align-items: center;
   justify-content: center;
 
@@ -363,8 +407,9 @@ select {
 
   min-width: 245px;
 
-  margin-top: 34px;
-  padding: 16px 28px;
+  margin-top: 26px;
+
+  padding: 15px 27px;
 
   border:
     1px solid
@@ -382,6 +427,7 @@ select {
   color: #fff8ed;
 
   font-weight: 800;
+
   letter-spacing: 0.015em;
 
   cursor: pointer;
@@ -407,6 +453,7 @@ select {
 
   left: 12%;
   right: 12%;
+
   bottom: -16px;
 
   height: 31px;
@@ -447,136 +494,182 @@ select {
     0 0 11px rgba(255, 176, 77, 0.9);
 }
 
+
 /* =========================================================
-   FRANKIE — IN THE ENVIRONMENT
+   FRANKIE STAGE
    ========================================================= */
 
 .frankie-stage {
   position: relative;
 
-  min-height: clamp(540px, 65vh, 720px);
+  align-self: stretch;
+
+  min-width: 0;
+  min-height: clamp(520px, 68vh, 720px);
 
   display: flex;
-  align-items: center;
+
+  align-items: flex-end;
   justify-content: center;
 
   isolation: isolate;
+
+  overflow: visible;
 }
+
+
+/* =========================================================
+   FRANKIE AMBIENT AURA
+   ========================================================= */
 
 .frankie-aura {
   position: absolute;
 
-  z-index: -2;
+  left: 50%;
 
-  width: 78%;
-  aspect-ratio: 1;
+  bottom: 4%;
+
+  width: 92%;
+  height: 80%;
+
+  transform: translateX(-50%);
 
   border-radius: 50%;
 
   background:
     radial-gradient(
-      circle,
-      rgba(242, 112, 34, 0.2) 0%,
-      rgba(213, 67, 18, 0.105) 34%,
-      rgba(155, 49, 17, 0.035) 56%,
-      transparent 74%
+      ellipse at center bottom,
+      rgba(242, 112, 34, 0.18) 0%,
+      rgba(213, 67, 18, 0.10) 35%,
+      rgba(155, 49, 17, 0.035) 57%,
+      transparent 76%
     );
 
-  filter: blur(23px);
+  filter: blur(32px);
+
+  pointer-events: none;
+
+  z-index: 0;
 }
+
+
+/* =========================================================
+   GLOWING FLOOR
+   ========================================================= */
 
 .frankie-floor-glow {
   position: absolute;
 
-  z-index: -1;
+  left: 50%;
 
-  left: 20%;
-  right: 15%;
-  bottom: 7%;
+  bottom: 7px;
 
-  height: 82px;
+  width: min(590px, 96%);
+  height: 118px;
+
+  transform: translateX(-50%);
 
   border-radius: 50%;
 
   background:
     radial-gradient(
-      ellipse,
-      rgba(230, 87, 25, 0.21),
-      rgba(170, 54, 17, 0.06) 48%,
-      transparent 72%
+      ellipse at center,
+      rgba(255, 220, 155, 0.68) 0%,
+      rgba(255, 177, 88, 0.62) 14%,
+      rgba(239, 117, 47, 0.50) 30%,
+      rgba(208, 70, 30, 0.29) 48%,
+      rgba(119, 43, 26, 0.10) 66%,
+      transparent 78%
     );
 
-  filter: blur(18px);
+  filter: blur(14px);
+
+  box-shadow:
+    0 0 34px rgba(255, 145, 62, 0.31),
+    0 0 80px rgba(220, 74, 29, 0.19);
+
+  pointer-events: none;
+
+  z-index: 1;
 }
+
+
+/* =========================================================
+   BRIGHT CONTACT GLOW
+   ========================================================= */
+
+.frankie-contact-glow {
+  position: absolute;
+
+  left: 50%;
+
+  bottom: 26px;
+
+  width: min(390px, 68%);
+  height: 40px;
+
+  transform: translateX(-50%);
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 240, 199, 0.96) 0%,
+      rgba(255, 208, 132, 0.90) 16%,
+      rgba(255, 161, 70, 0.68) 34%,
+      rgba(232, 93, 37, 0.38) 54%,
+      rgba(185, 58, 28, 0.10) 70%,
+      transparent 79%
+    );
+
+  filter: blur(7px);
+
+  box-shadow:
+    0 0 22px rgba(255, 182, 91, 0.38);
+
+  pointer-events: none;
+
+  z-index: 2;
+}
+
+
+/* =========================================================
+   FRANKIE CHARACTER
+   ========================================================= */
 
 .frankie-character {
   position: relative;
 
-  z-index: 2;
+  z-index: 3;
 
   display: block;
 
-  width: min(100%, 665px);
-  height: auto;
+  width: auto;
+  height: min(71vh, 675px);
+
+  max-width: 100%;
+
+  margin: 0;
 
   object-fit: contain;
+  object-position: center bottom;
+
+  transform: translateY(4px);
 
   filter:
     drop-shadow(
-      0 28px 34px
-      rgba(0, 0, 0, 0.44)
+      0 28px 30px
+      rgba(0, 0, 0, 0.42)
     )
     drop-shadow(
-      0 0 22px
-      rgba(225, 77, 21, 0.18)
+      0 7px 18px
+      rgba(225, 77, 21, 0.14)
     );
 
   user-select: none;
 }
 
-.frankie-whisper {
-  position: absolute;
-
-  z-index: 4;
-
-  right: 2%;
-  bottom: 12%;
-
-  display: flex;
-  flex-direction: column;
-
-  padding: 13px 17px;
-
-  border-left:
-    1px solid
-    rgba(209, 140, 67, 0.42);
-
-  color: #a99f92;
-
-  text-align: left;
-
-  text-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.7);
-}
-
-.frankie-whisper span {
-  font-size: 0.76rem;
-}
-
-.frankie-whisper strong {
-  margin-top: 3px;
-
-  color: #d69a53;
-
-  font-family:
-    Georgia,
-    "Times New Roman",
-    serif;
-
-  font-size: 1.04rem;
-  font-weight: 500;
-  font-style: italic;
-}
 
 /* =========================================================
    FOOTER
@@ -590,6 +683,7 @@ select {
   min-height: 58px;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
@@ -607,6 +701,7 @@ select {
   color: #6f675e;
 
   font-size: 0.64rem;
+
   font-weight: 700;
 
   letter-spacing: 0.18em;
@@ -622,6 +717,7 @@ select {
     rgba(214, 98, 35, 0.38);
 }
 
+
 /* =========================================================
    RESPONSIVE
    ========================================================= */
@@ -629,63 +725,92 @@ select {
 @media (max-width: 1120px) {
   .welcome-stage {
     grid-template-columns:
-      minmax(470px, 1fr)
+      minmax(450px, 1fr)
       minmax(390px, 0.85fr);
 
     padding-inline: 46px;
   }
 
-  .welcome-tagline {
-    white-space: normal;
+  .welcome-title {
+    font-size: clamp(2.4rem, 4vw, 3.25rem);
   }
 
   .frankie-stage {
-    min-height: 520px;
+    min-height: 510px;
+  }
+
+  .frankie-character {
+    height: min(64vh, 600px);
+  }
+
+  .frankie-floor-glow {
+    width: min(510px, 96%);
   }
 }
+
 
 @media (max-width: 850px) {
   .welcome-stage {
     grid-template-columns: 1fr;
 
     padding:
-      38px
+      34px
       28px
-      20px;
+      0;
 
     text-align: center;
   }
 
   .welcome-content {
     margin: 0 auto;
+
+    padding-bottom: 28px;
   }
 
   .feather-fire-logo {
     margin-inline: auto;
-    margin-bottom: 36px;
+
+    margin-bottom: 28px;
+  }
+
+  .welcome-conversation {
+    margin-inline: auto;
+  }
+
+  .welcome-title {
+    font-size: clamp(2.5rem, 8vw, 3.4rem);
   }
 
   .ember-divider {
     margin-inline: auto;
   }
 
-  .welcome-intro {
+  .welcome-opening,
+  .welcome-body,
+  .welcome-rhythm p,
+  .welcome-emphasis,
+  .welcome-final-line {
     margin-inline: auto;
   }
 
   .frankie-stage {
-    min-height: 450px;
+    min-height: 470px;
   }
 
   .frankie-character {
     width: min(90%, 520px);
+    height: auto;
   }
 
-  .frankie-whisper {
-    right: 12%;
-    bottom: 7%;
+  .frankie-floor-glow {
+    width: min(520px, 92%);
+  }
+
+  .frankie-contact-glow {
+    width: min(340px, 64%);
   }
 }
+
 
 @media (max-width: 540px) {
   .welcome-stage {
@@ -697,20 +822,15 @@ select {
   }
 
   .welcome-title {
-    font-size:
-      clamp(
-        4.25rem,
-        22vw,
-        6rem
-      );
+    font-size: clamp(2.25rem, 11vw, 3rem);
   }
 
-  .welcome-tagline {
-    font-size: 1.13rem;
-  }
-
-  .welcome-intro {
-    font-size: 0.95rem;
+  .welcome-opening,
+  .welcome-body,
+  .welcome-rhythm p,
+  .welcome-emphasis,
+  .welcome-final-line {
+    font-size: 0.94rem;
   }
 
   .fire-button {
@@ -718,20 +838,27 @@ select {
   }
 
   .frankie-stage {
-    min-height: 380px;
+    min-height: 390px;
   }
 
   .frankie-character {
     width: 100%;
+    height: auto;
   }
 
-  .frankie-whisper {
-    right: 2%;
-    bottom: 2%;
+  .frankie-floor-glow {
+    width: 100%;
+    height: 90px;
+  }
+
+  .frankie-contact-glow {
+    width: 62%;
+    height: 30px;
   }
 
   .welcome-footer {
     flex-wrap: wrap;
+
     gap: 7px 12px;
 
     text-align: center;
@@ -739,6 +866,7 @@ select {
     letter-spacing: 0.12em;
   }
 }
+
 
 /* =========================================================
    TEMPORARY HOME PLACEHOLDER
@@ -748,6 +876,7 @@ select {
   min-height: 100vh;
 
   display: grid;
+
   place-items: center;
 
   padding: 32px;
