@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 
 import featherFireLogo from '../assets/feather-fire-logo.png'
-import frankie from '../assets/frankie.png'
+import frankie from '../assets/frankie/frankie-main.png'
 
 function WelcomePage() {
   const navigate = useNavigate()
