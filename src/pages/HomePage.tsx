@@ -37,7 +37,7 @@ type ChatApiResponse = {
 
 function HomePage() {
   const [message, setMessage] = useState('')
-  const [voiceEnabled, setVoiceEnabled] = useState(true)
+const [voiceEnabled, setVoiceEnabled] = useState(false) 
   const [isListening, setIsListening] = useState(false)
   const [showToday, setShowToday] = useState(true)
   const [isFrankieThinking, setIsFrankieThinking] = useState(false)

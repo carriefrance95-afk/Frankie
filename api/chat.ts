@@ -118,7 +118,7 @@ export default {
           },
 
           body: JSON.stringify({
-            model: 'gpt-5',
+            model: 'gpt-5-mini',
 
             instructions: FRANKIE_CORE_INSTRUCTIONS,
 
