@@ -39,6 +39,31 @@ type OnboardingRequestBody = {
   knownContext?: KnownContext
 }
 
+type ExtractedContext = {
+  preferredName: string | null
+  businesses: OnboardingBusiness[]
+  primaryBusinessName: string | null
+  currentPriority: string | null
+}
+
+type OnboardingObjective =
+  | {
+      type: 'preferred_name'
+    }
+  | {
+      type: 'business_names'
+    }
+  | {
+      type: 'business_description'
+      businessName: string
+    }
+  | {
+      type: 'current_priority'
+    }
+  | {
+      type: 'complete'
+    }
+
 type OpenAIOutputItem = {
   type?: string
   content?: Array<{
@@ -51,235 +76,122 @@ type OpenAIResponseBody = {
   output?: OpenAIOutputItem[]
 }
 
-const ONBOARDING_INSTRUCTIONS = `
-You are conducting Frankie's first-time onboarding conversation.
+const EXTRACTION_INSTRUCTIONS = `
+You are the context-reading layer for Frankie's first-time onboarding.
 
-This is a CONVERSATION, not a questionnaire, intake form, assessment,
-setup wizard, interview, or checklist disguised as a paragraph.
+Your job is ONLY to read the entire conversation plus the supplied known
+context and return the most complete, accurate structured understanding
+supported by what the owner has actually said.
 
-The owner should feel like they are naturally getting acquainted with Frankie.
+This is not the conversational reply. Do not ask questions.
 
-Frankie is warm, smart, grounded, practical, conversational, observant,
-and lightly playful when appropriate. Frankie is never snarky, mean,
-patronizing, overly cute, robotic, corporate, interrogative, or repetitive.
-
-============================================================
-ABSOLUTE CONVERSATION RULE
-============================================================
-
-ONE RESPONSE = ONE CONVERSATIONAL OBJECTIVE.
-
-Frankie may ask AT MOST ONE QUESTION in each response.
-
-Never bundle several questions together.
-Never ask the owner to answer several things "in one sentence each."
-Never give the owner a list of things they need to answer.
-Never turn onboarding into homework.
-Never say "start with X" after asking about multiple businesses.
-
-Keep onboarding replies short and natural.
-
-============================================================
-LISTENING OUTRANKS THE ONBOARDING SEQUENCE
-============================================================
-
-Before asking ANY question, determine whether the answer is already present in:
-- the owner's latest message
-- earlier conversation messages
-- supplied known context
-- stored Frankie memories
-
-If the owner volunteers information early, COUNT IT.
-Do not ask for it again merely because Frankie had not formally asked yet.
-
-If one owner response satisfies multiple onboarding objectives, advance past
-ALL of those objectives.
-
-Example:
-Frankie asks whether one business is the current focus.
-Owner says:
-"My focus right now is Feather & Fire. I'm building the first version of
-the AI app and the operating system behind it, but I'm trying to balance
-all three businesses."
-
-That already establishes:
-- no permanent single primary business is being declared
-- current focus = Feather & Fire
-- current priority = building Frankie v1 and its operating system
-- balancing the other businesses remains relevant
-
-Frankie MUST NOT then ask:
-"What needs your attention most this week for Feather & Fire?"
-
-The owner already answered it.
-
-============================================================
-USE WHAT FRANKIE ALREADY KNOWS
-============================================================
-
-Use supplied preferred name, businesses, descriptions, primary-business
-information, priorities, and memories.
-
-Never ask for information Frankie already has.
-Never pretend to know information that is not supplied.
-
-If preferredName is unknown, ask ONLY what the owner wants to be called.
-If it is known, use it naturally and move to the next genuinely unknown topic.
-
-============================================================
-BUSINESS UNDERSTANDING IS REQUIRED
-============================================================
-
-Knowing business names alone is not enough. Frankie needs a short,
-plain-language understanding of what each active business does.
-
-If several businesses lack context, ask about ONE business at a time.
-
-Natural:
-"Best Days Travel first — what's that side of your business world?"
-
-Do NOT say:
-"Tell me, in one sentence each, what each business does."
-
-If the owner voluntarily explains multiple businesses in one response,
-capture all of them and do not ask about those businesses again.
-
-============================================================
-PRIMARY BUSINESS AND CURRENT FOCUS ARE DIFFERENT
-============================================================
-
-PRIMARY BUSINESS means the owner explicitly identifies one business as
-their enduring main or primary business.
-
-CURRENT FOCUS means one business needs more attention right now, this week,
-or during the current project or season.
-
-Never convert CURRENT FOCUS into primaryBusinessName automatically.
-
-"Feather & Fire is my main business."
--> may set primaryBusinessName.
-
-"My focus right now is Feather & Fire because I'm finishing the app."
--> current focus/priority only. Do NOT set primaryBusinessName.
-
-"I'm trying to balance all three."
--> no permanent primary business has been declared; primaryBusinessName
-remains null.
-
-If the owner says all businesses are important, they are balancing them,
-there is no single primary business, or priorities shift, accept that answer
-and do not keep trying to force a primary business.
-
-============================================================
-CURRENT PRIORITY
-============================================================
-
-Frankie should understand what currently needs the owner's attention.
-
-The owner does not need to use words like "priority," "goal," or "this week."
-
-Statements such as these count:
-- "I'm building the first version of the app."
-- "I need to finish the operating system behind it."
-- "I'm at my mom's working on PorchLight Finds through Friday."
-- "I need to get these listings done."
-
-If a response clearly states what the owner is trying to finish, build,
-solve, launch, or handle, treat it as current-priority context.
-Do not ask the owner to restate it.
-
-Scheduling information, work-location context, deadlines, and temporary
-commitments can be useful current working context, but are not permanent facts.
-
-============================================================
-DO NOT PROMISE UNAVAILABLE ACTIONS
-============================================================
-
-Do not claim or imply Frankie can perform an external action unless supplied
-context explicitly confirms that capability is connected and available.
-
-This includes blocking calendar time, sending email, creating calendar events,
-editing spreadsheets, sending messages, or changing connected systems.
-
-Acknowledge useful information instead of offering unavailable actions.
-
-============================================================
-DECIDING WHAT TO ASK NEXT
-============================================================
-
-After EVERY owner message, check:
-1. What new facts did the owner volunteer?
-2. Which onboarding objectives did those facts satisfy?
-3. What is still genuinely missing?
-4. Is that missing information necessary before useful work can begin?
-5. If nothing necessary is missing, END onboarding. Do not manufacture
-   another question.
-
-General objectives:
-- preferred name
-- active business names
-- enough context to understand what each business does
-- whether a permanent primary business has actually been declared, when relevant
-- useful current focus/priority context
-
-The sequence is flexible. Listening outranks sequence.
-
-============================================================
-ENDING ONBOARDING
-============================================================
-
-When enough context exists, set onboardingComplete to true.
-Do not ask another question in the same reply.
-
-End naturally. Do not say "Onboarding is complete."
-
-Example:
-"Got it, Carrie. Feather & Fire has the heaviest attention right now —
-specifically getting Frankie v1 and the operating system behind her built —
-while you're still balancing the other businesses. I've got enough to get
-us moving. I'll learn the rest while we work."
-
-============================================================
-STRUCTURED DATA RULES
-============================================================
-
-Only extract facts supported by the owner's messages or supplied known context.
+IMPORTANT:
+- Treat volunteered information as fully valid even when Frankie did not ask
+  for it yet.
+- Preserve useful facts already present in known context unless the owner
+  clearly corrects or replaces them.
+- Never invent a business, description, priority, or primary business.
+- If the owner explains several businesses in one message, capture all of them.
+- Merge business information by business name rather than creating duplicates.
 
 preferredName:
 The name the owner wants Frankie to use.
 
 businesses:
-Every clearly identified active business, each as:
-{
-  "name": "Business name",
-  "businessType": null,
-  "description": null
-}
+Every clearly identified active business.
 
-businessType:
-Only use when reasonably supported.
-
-description:
-Capture a useful plain-language explanation of what the business does.
+For each business:
+- name: the business name
+- businessType: a concise category only when reasonably supported
+- description: a useful plain-language explanation of what the business does,
+  only when supported
 
 primaryBusinessName:
-Set ONLY when the owner clearly identifies a business as their permanent/main/
-primary business. Do NOT set it merely because a business is the current focus,
-has an urgent project, or gets the most attention this week.
+This is ONLY for a business the owner explicitly identifies as their enduring
+main or primary business.
 
-If the owner is balancing multiple businesses or has not declared a permanent
-primary business, use null.
+A current focus is NOT a primary business.
+
+Examples:
+"My main business is Feather & Fire."
+-> primaryBusinessName may be "Feather & Fire"
+
+"My focus right now is Feather & Fire."
+-> primaryBusinessName must remain null unless some other statement explicitly
+   establishes it as the permanent main business.
+
+"I'm balancing all three."
+-> do not force a primary business.
 
 currentPriority:
-Capture the owner's current main focus, project, bottleneck, goal, or area
-needing attention with enough detail that Frankie does not need to ask them
-to repeat it.
+Capture what the owner is currently trying to finish, build, solve, launch,
+handle, or give the most attention to.
 
-Use null for information that remains unknown.
+Examples:
+"I'm building the first version of the AI app and the operating system behind it."
+-> that is current-priority information
 
-Return only the required structured response.
-The visible conversational message belongs in "reply".
-The learned information belongs in "extracted".
+"I need to get these listings done."
+-> that is current-priority information
+
+Return only the required structured data.
+`
+
+const CONVERSATION_INSTRUCTIONS = `
+You are Frankie during first-time onboarding.
+
+Frankie is warm, smart, grounded, practical, conversational, observant, and
+lightly playful when appropriate.
+
+This is a conversation, not a questionnaire, intake form, setup wizard,
+assessment, or interview.
+
+The application has already determined the ONE objective you are allowed to
+handle in this response.
+
+You MUST obey that objective exactly.
+
+ABSOLUTE RULES:
+- Ask at most ONE question.
+- Never bundle multiple information requests together.
+- Never ask the owner to answer several things "in one sentence each."
+- Never give the owner homework.
+- Never ask for information outside the supplied objective.
+- Never ask for information already shown in the supplied current context.
+- If the objective is complete, ask NO question.
+- Do not offer to perform external actions such as calendar changes, email,
+  spreadsheet edits, or messages during onboarding.
+- Keep the reply short and natural.
+- Do not mention onboarding stages, objectives, fields, schemas, or missing data.
+
+OBJECTIVE BEHAVIOR:
+
+preferred_name:
+Ask only what the owner wants Frankie to call them.
+
+business_names:
+Ask only which business or businesses the owner is running.
+Do NOT ask what the businesses do in the same response.
+
+business_description:
+Ask naturally about ONLY the named business supplied in the objective.
+Do NOT ask about any other business in the same response.
+Do NOT say "in one sentence."
+Do NOT say "start with" because only one business is being discussed.
+
+current_priority:
+Ask one natural question that helps Frankie understand what currently needs the
+owner's attention across their business world.
+Do not ask them to declare a permanent primary business.
+
+complete:
+Acknowledge what Frankie has learned and end naturally.
+Ask NO question.
+Do not say "Onboarding is complete."
+A good ending feels like:
+"I've got enough to get us moving. I'll learn the rest while we work."
+
+Return only the visible conversational reply.
 `
 
 function extractOutputText(
@@ -307,6 +219,320 @@ function extractOutputText(
   }
 
   return textParts.join('\n').trim()
+}
+
+function normalizeBusinesses(
+  businesses: OnboardingBusiness[],
+): OnboardingBusiness[] {
+  const byName = new Map<string, OnboardingBusiness>()
+
+  for (const business of businesses) {
+    const name = business.name?.trim()
+
+    if (!name) {
+      continue
+    }
+
+    const key = name.toLowerCase()
+    const existing = byName.get(key)
+
+    if (!existing) {
+      byName.set(key, {
+        name,
+        businessType:
+          business.businessType?.trim() || null,
+        description:
+          business.description?.trim() || null,
+      })
+      continue
+    }
+
+    byName.set(key, {
+      name: existing.name,
+      businessType:
+        business.businessType?.trim() ||
+        existing.businessType,
+      description:
+        business.description?.trim() ||
+        existing.description,
+    })
+  }
+
+  return Array.from(byName.values())
+}
+
+function mergeKnownAndExtracted(
+  knownContext: KnownContext,
+  extracted: ExtractedContext,
+): ExtractedContext {
+  const knownBusinesses =
+    Array.isArray(knownContext.businesses)
+      ? knownContext.businesses
+      : []
+
+  return {
+    preferredName:
+      extracted.preferredName?.trim() ||
+      knownContext.preferredName?.trim() ||
+      null,
+    businesses: normalizeBusinesses([
+      ...knownBusinesses,
+      ...extracted.businesses,
+    ]),
+    primaryBusinessName:
+      extracted.primaryBusinessName?.trim() ||
+      knownContext.primaryBusinessName?.trim() ||
+      null,
+    currentPriority:
+      extracted.currentPriority?.trim() ||
+      knownContext.currentPriority?.trim() ||
+      null,
+  }
+}
+
+function determineObjective(
+  context: ExtractedContext,
+): OnboardingObjective {
+  if (!context.preferredName) {
+    return {
+      type: 'preferred_name',
+    }
+  }
+
+  if (context.businesses.length === 0) {
+    return {
+      type: 'business_names',
+    }
+  }
+
+  const businessMissingDescription =
+    context.businesses.find(
+      (business) =>
+        !business.description?.trim(),
+    )
+
+  if (businessMissingDescription) {
+    return {
+      type: 'business_description',
+      businessName:
+        businessMissingDescription.name,
+    }
+  }
+
+  if (!context.currentPriority) {
+    return {
+      type: 'current_priority',
+    }
+  }
+
+  return {
+    type: 'complete',
+  }
+}
+
+async function callOpenAI(
+  apiKey: string,
+  payload: Record<string, unknown>,
+): Promise<OpenAIResponseBody> {
+  const response = await fetch(
+    'https://api.openai.com/v1/responses',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+
+  if (!response.ok) {
+    const errorText = await response.text()
+
+    console.error(
+      'OpenAI onboarding error:',
+      response.status,
+      errorText,
+    )
+
+    throw new Error(
+      `OpenAI request failed with ${response.status}`,
+    )
+  }
+
+  return (await response.json()) as OpenAIResponseBody
+}
+
+async function extractContext(
+  apiKey: string,
+  messages: ChatMessage[],
+  knownContext: KnownContext,
+): Promise<ExtractedContext> {
+  const extractionResponse = await callOpenAI(
+    apiKey,
+    {
+      model: 'gpt-5-mini',
+      reasoning: {
+        effort: 'minimal',
+      },
+      instructions: EXTRACTION_INSTRUCTIONS,
+      input: [
+        {
+          role: 'developer',
+          content: `
+CURRENT KNOWN USER CONTEXT:
+
+${JSON.stringify(knownContext, null, 2)}
+
+Read this together with the ENTIRE conversation.
+`,
+        },
+        ...messages.map((message) => ({
+          role: message.role,
+          content: message.content.trim(),
+        })),
+      ],
+      text: {
+        verbosity: 'low',
+        format: {
+          type: 'json_schema',
+          name: 'frankie_onboarding_extraction',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              preferredName: {
+                type: ['string', 'null'],
+              },
+              businesses: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    name: {
+                      type: 'string',
+                    },
+                    businessType: {
+                      type: ['string', 'null'],
+                    },
+                    description: {
+                      type: ['string', 'null'],
+                    },
+                  },
+                  required: [
+                    'name',
+                    'businessType',
+                    'description',
+                  ],
+                },
+              },
+              primaryBusinessName: {
+                type: ['string', 'null'],
+              },
+              currentPriority: {
+                type: ['string', 'null'],
+              },
+            },
+            required: [
+              'preferredName',
+              'businesses',
+              'primaryBusinessName',
+              'currentPriority',
+            ],
+          },
+        },
+      },
+    },
+  )
+
+  const rawText =
+    extractOutputText(extractionResponse)
+
+  if (!rawText) {
+    throw new Error(
+      'Frankie extraction returned no text',
+    )
+  }
+
+  const parsed =
+    JSON.parse(rawText) as ExtractedContext
+
+  return mergeKnownAndExtracted(
+    knownContext,
+    {
+      ...parsed,
+      businesses:
+        Array.isArray(parsed.businesses)
+          ? parsed.businesses
+          : [],
+    },
+  )
+}
+
+async function generateReply(
+  apiKey: string,
+  messages: ChatMessage[],
+  context: ExtractedContext,
+  objective: OnboardingObjective,
+): Promise<string> {
+  const replyResponse = await callOpenAI(
+    apiKey,
+    {
+      model: 'gpt-5-mini',
+      reasoning: {
+        effort: 'minimal',
+      },
+      instructions: `
+${FRANKIE_CORE_INSTRUCTIONS}
+
+${CONVERSATION_INSTRUCTIONS}
+`,
+      input: [
+        {
+          role: 'developer',
+          content: `
+CURRENT ONBOARDING CONTEXT:
+
+${JSON.stringify(context, null, 2)}
+
+THE ONLY ALLOWED OBJECTIVE FOR THIS RESPONSE:
+
+${JSON.stringify(objective, null, 2)}
+
+Follow that objective exactly.
+
+If the objective is "business_names", ask only for business names and nothing
+about descriptions, business types, priorities, goals, or focus.
+
+If the objective is "business_description", ask only about the single business
+named in the objective.
+
+If the objective is "complete", ask no question.
+`,
+        },
+        ...messages.map((message) => ({
+          role: message.role,
+          content: message.content.trim(),
+        })),
+      ],
+      text: {
+        verbosity: 'low',
+      },
+    },
+  )
+
+  const reply =
+    extractOutputText(replyResponse)
+
+  if (!reply) {
+    throw new Error(
+      'Frankie reply returned no text',
+    )
+  }
+
+  return reply
 }
 
 export default {
@@ -358,227 +584,30 @@ export default {
       const knownContext =
         body.knownContext ?? {}
 
-      const contextMessage = `
-CURRENT KNOWN USER CONTEXT:
-
-${JSON.stringify(
-  knownContext,
-  null,
-  2,
-)}
-
-Use this context together with the ENTIRE conversation.
-
-Before asking a question, verify that the owner has not already answered it
-voluntarily in an earlier or current message.
-
-A current focus is NOT automatically a primary business.
-Only set primaryBusinessName when the owner clearly declares a permanent
-main/primary business.
-
-Do not ask for anything already clearly known.
-
-Read the whole conversation before deciding whether the owner has
-already answered the primary-business question.
-
-Frankie's next reply may contain AT MOST ONE question.
-
-Do not offer external actions unless supplied context explicitly confirms
-that capability is connected and available.
-`
-
-      const input = [
-        {
-          role: 'developer',
-          content: contextMessage,
-        },
-        ...validMessages.map(
-          (message) => ({
-            role: message.role,
-            content:
-              message.content.trim(),
-          }),
-        ),
-      ]
-
-      const openAIResponse =
-        await fetch(
-          'https://api.openai.com/v1/responses',
-          {
-            method: 'POST',
-            headers: {
-              Authorization:
-                `Bearer ${apiKey}`,
-              'Content-Type':
-                'application/json',
-            },
-            body: JSON.stringify({
-              model: 'gpt-5-mini',
-              reasoning: {
-                effort: 'minimal',
-              },
-              instructions: `
-${FRANKIE_CORE_INSTRUCTIONS}
-
-${ONBOARDING_INSTRUCTIONS}
-`,
-              input,
-              text: {
-                verbosity: 'low',
-                format: {
-                  type: 'json_schema',
-                  name:
-                    'frankie_onboarding_response',
-                  strict: true,
-                  schema: {
-                    type: 'object',
-                    additionalProperties:
-                      false,
-                    properties: {
-                      reply: {
-                        type: 'string',
-                      },
-                      extracted: {
-                        type: 'object',
-                        additionalProperties:
-                          false,
-                        properties: {
-                          preferredName: {
-                            type: [
-                              'string',
-                              'null',
-                            ],
-                          },
-                          businesses: {
-                            type: 'array',
-                            items: {
-                              type: 'object',
-                              additionalProperties:
-                                false,
-                              properties: {
-                                name: {
-                                  type: 'string',
-                                },
-                                businessType: {
-                                  type: [
-                                    'string',
-                                    'null',
-                                  ],
-                                },
-                                description: {
-                                  type: [
-                                    'string',
-                                    'null',
-                                  ],
-                                },
-                              },
-                              required: [
-                                'name',
-                                'businessType',
-                                'description',
-                              ],
-                            },
-                          },
-                          primaryBusinessName: {
-                            type: [
-                              'string',
-                              'null',
-                            ],
-                          },
-                          currentPriority: {
-                            type: [
-                              'string',
-                              'null',
-                            ],
-                          },
-                        },
-                        required: [
-                          'preferredName',
-                          'businesses',
-                          'primaryBusinessName',
-                          'currentPriority',
-                        ],
-                      },
-                      onboardingComplete: {
-                        type: 'boolean',
-                      },
-                    },
-                    required: [
-                      'reply',
-                      'extracted',
-                      'onboardingComplete',
-                    ],
-                  },
-                },
-              },
-            }),
-          },
+      const extracted =
+        await extractContext(
+          apiKey,
+          validMessages,
+          knownContext,
         )
 
-      if (!openAIResponse.ok) {
-        const errorText =
-          await openAIResponse.text()
+      const objective =
+        determineObjective(extracted)
 
-        console.error(
-          'OpenAI onboarding error:',
-          openAIResponse.status,
-          errorText,
+      const reply =
+        await generateReply(
+          apiKey,
+          validMessages,
+          extracted,
+          objective,
         )
 
-        return Response.json(
-          {
-            error:
-              'Frankie could not start onboarding.',
-          },
-          { status: 502 },
-        )
-      }
-
-      const data =
-        (await openAIResponse.json()) as OpenAIResponseBody
-
-      const rawText =
-        extractOutputText(data)
-
-      if (!rawText) {
-        console.error(
-          'Frankie onboarding returned no text:',
-          JSON.stringify(data),
-        )
-
-        return Response.json(
-          {
-            error:
-              'Frankie received an empty onboarding response.',
-          },
-          { status: 502 },
-        )
-      }
-
-      let parsedResponse: unknown
-
-      try {
-        parsedResponse =
-          JSON.parse(rawText)
-      } catch (parseError) {
-        console.error(
-          'Frankie onboarding JSON parse error:',
-          parseError,
-          rawText,
-        )
-
-        return Response.json(
-          {
-            error:
-              'Frankie returned an unreadable onboarding response.',
-          },
-          { status: 502 },
-        )
-      }
-
-      return Response.json(
-        parsedResponse,
-      )
+      return Response.json({
+        reply,
+        extracted,
+        onboardingComplete:
+          objective.type === 'complete',
+      })
     } catch (error) {
       console.error(
         'Frankie onboarding error:',
