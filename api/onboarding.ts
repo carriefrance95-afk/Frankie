@@ -100,8 +100,20 @@ The name the owner wants Frankie to use.
 businesses:
 Every clearly identified active business.
 
+BUSINESS NAME RULES:
+- Preserve the business name EXACTLY as the owner gives it.
+- Never abbreviate a business name.
+- Never replace a business name with initials.
+- Never shorten a business name for convenience.
+- Never rewrite, normalize, simplify, or improve a business name.
+- If the owner gives "Best Days Travel", keep "Best Days Travel".
+- If the owner gives "PorchLight Finds", keep "PorchLight Finds".
+- If the owner gives "Feather & Fire", keep "Feather & Fire".
+- If the owner later clearly corrects the business name, use the corrected name.
+- Descriptions may be summarized, but business names may NOT be summarized.
+
 For each business:
-- name: the business name
+- name: the exact business name stated by the owner
 - businessType: a concise category only when reasonably supported
 - description: a useful plain-language explanation of what the business does,
   only when supported
