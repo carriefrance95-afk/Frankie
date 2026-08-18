@@ -8,8 +8,39 @@ type ChatMessage = {
   content: string
 }
 
+type WorkspaceContext = {
+  id: string
+  name: string
+  type: 'master' | 'business'
+}
+
+type BusinessContext = {
+  id: string
+  name: string
+  businessType: string | null
+  description: string | null
+  isPrimary: boolean
+}
+
+type FrankieMemory = {
+  businessId: string | null
+  memoryType: string
+  title: string
+  content: string
+  importance: number
+}
+
+type OwnerContext = {
+  preferredName: string | null
+  currentPriority: string | null
+  businesses: BusinessContext[]
+  memories: FrankieMemory[]
+}
+
 type ChatRequestBody = {
   messages?: ChatMessage[]
+  workspaceContext?: WorkspaceContext
+  ownerContext?: OwnerContext
 }
 
 type OpenAIStreamEvent = {
@@ -78,6 +109,36 @@ export default {
         )
       }
 
+      const workspaceContext = body.workspaceContext ?? {
+        id: 'master',
+        name: 'Master View',
+        type: 'master' as const,
+      }
+
+      const ownerContext = body.ownerContext ?? {
+        preferredName: null,
+        currentPriority: null,
+        businesses: [],
+        memories: [],
+      }
+
+      const contextInstructions = `
+CURRENT OWNER CONTEXT
+${JSON.stringify(ownerContext, null, 2)}
+
+CURRENT WORKSPACE
+${JSON.stringify(workspaceContext, null, 2)}
+
+Use this context naturally. Do not recite it back unless it is useful.
+Remember that Master View means the owner may be talking across all of their
+businesses. If a specific business workspace is selected, prioritize that
+business while still retaining the owner's broader context.
+
+The owner has already completed Frankie's initial backend setup. Never act as
+though you are meeting them for the first time, and never ask them to repeat
+information that is already present above.
+`
+
       const input = validMessages.map((message) => ({
         role: message.role,
         content: message.content.trim(),
@@ -100,7 +161,9 @@ export default {
               effort: 'minimal',
             },
 
-            instructions: FRANKIE_INSTRUCTIONS,
+            instructions: `${FRANKIE_INSTRUCTIONS}
+
+${contextInstructions}`,
 
             input,
 

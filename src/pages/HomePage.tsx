@@ -52,6 +52,29 @@ type WorkspaceContext = {
   type: 'master' | 'business'
 }
 
+type BusinessProfile = {
+  id: string
+  name: string
+  businessType: string | null
+  description: string | null
+  isPrimary: boolean
+}
+
+type FrankieMemory = {
+  businessId: string | null
+  memoryType: string
+  title: string
+  content: string
+  importance: number
+}
+
+type OwnerContext = {
+  preferredName: string | null
+  currentPriority: string | null
+  businesses: BusinessProfile[]
+  memories: FrankieMemory[]
+}
+
 const THEME_STORAGE_KEY =
   'frankie-workspace-theme'
 
@@ -105,19 +128,28 @@ function HomePage() {
     setSelectedContextId,
   ] = useState('master')
 
-  /*
-   * Real business profiles will eventually
-   * come from Supabase.
-   *
-   * Master View always exists.
-   */
-  const workspaceContexts:
-    WorkspaceContext[] = [
+  const [ownerContext, setOwnerContext] =
+    useState<OwnerContext>({
+      preferredName: null,
+      currentPriority: null,
+      businesses: [],
+      memories: [],
+    })
+
+  const [isWorkspaceLoading, setIsWorkspaceLoading] =
+    useState(true)
+
+  const workspaceContexts: WorkspaceContext[] = [
     {
       id: 'master',
       name: 'Master View',
       type: 'master',
     },
+    ...ownerContext.businesses.map((business) => ({
+      id: business.id,
+      name: business.name,
+      type: 'business' as const,
+    })),
   ]
 
   /*
@@ -130,20 +162,7 @@ function HomePage() {
   const [
     messages,
     setMessages,
-  ] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      role: 'frankie',
-      text:
-        "Good morning. I'm here. Before we get into anything else, let's get you oriented. I can help you keep an eye on your day, your business, your messages, and everything that needs your attention.",
-    },
-    {
-      id: 2,
-      role: 'frankie',
-      text:
-        'You can type to me, or tap the microphone and talk. What would you like to work on first?',
-    },
-  ])
+  ] = useState<ChatMessage[]>([])
 
   const recognitionRef =
     useRef<SpeechRecognitionLike | null>(
@@ -193,6 +212,132 @@ function HomePage() {
 
     document.body.scrollTop = 0
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadWorkspaceContext = async () => {
+      setIsWorkspaceLoading(true)
+
+      const { data: { user }, error: userError } =
+        await supabase.auth.getUser()
+
+      if (!isMounted) return
+
+      if (userError || !user) {
+        navigate('/signin', { replace: true })
+        return
+      }
+
+      const [profileResult, businessResult, memoryResult] =
+        await Promise.all([
+          supabase
+            .from('profiles')
+            .select('preferred_name, onboarding_data')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('businesses')
+            .select('id, name, business_type, description, is_primary')
+            .eq('owner_id', user.id)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('frankie_memories')
+            .select('business_id, memory_type, title, content, importance')
+            .eq('owner_id', user.id)
+            .eq('is_active', true)
+            .order('importance', { ascending: false })
+            .order('updated_at', { ascending: false }),
+        ])
+
+      if (!isMounted) return
+
+      if (profileResult.error) {
+        console.error('Frankie home profile load error:', profileResult.error)
+      }
+      if (businessResult.error) {
+        console.error('Frankie home businesses load error:', businessResult.error)
+      }
+      if (memoryResult.error) {
+        console.error('Frankie home memories load error:', memoryResult.error)
+      }
+
+      const profile = profileResult.data as {
+        preferred_name?: string | null
+        onboarding_data?: { currentPriority?: string | null } | null
+      } | null
+
+      const businesses: BusinessProfile[] =
+        (businessResult.data ?? []).map((business) => ({
+          id: business.id,
+          name: business.name,
+          businessType: business.business_type ?? null,
+          description: business.description ?? null,
+          isPrimary: business.is_primary === true,
+        }))
+
+      const memories: FrankieMemory[] =
+        (memoryResult.data ?? []).map((memory) => ({
+          businessId: memory.business_id ?? null,
+          memoryType: memory.memory_type,
+          title: memory.title,
+          content: memory.content,
+          importance: memory.importance,
+        }))
+
+      const priorityMemory = memories.find(
+        (memory) => memory.memoryType === 'current_priority',
+      )
+
+      const nextOwnerContext: OwnerContext = {
+        preferredName: profile?.preferred_name ?? null,
+        currentPriority:
+          profile?.onboarding_data?.currentPriority ??
+          priorityMemory?.content ??
+          null,
+        businesses,
+        memories,
+      }
+
+      setOwnerContext(nextOwnerContext)
+
+      const name = nextOwnerContext.preferredName
+      const businessNames = businesses.map((business) => business.name)
+      const businessText =
+        businessNames.length === 0
+          ? 'your business'
+          : businessNames.length === 1
+            ? businessNames[0]
+            : businessNames.length === 2
+              ? `${businessNames[0]} and ${businessNames[1]}`
+              : `${businessNames.slice(0, -1).join(', ')}, and ${businessNames.at(-1)}`
+
+      const greeting = name
+        ? `Good morning, ${name}. We're all set. I've got ${businessText} in your workspace${nextOwnerContext.currentPriority ? `, and I know your starting priority is ${nextOwnerContext.currentPriority}` : ''}. We'll keep building the picture as we work together.`
+        : `Good morning. We're all set. I've got ${businessText} in your workspace, and we'll keep building the picture as we work together.`
+
+      setMessages([
+        {
+          id: Date.now(),
+          role: 'frankie',
+          text: greeting,
+        },
+        {
+          id: Date.now() + 1,
+          role: 'frankie',
+          text: 'Let’s start with today. Tell me what you have going on, and we’ll figure out what actually needs your attention first.',
+        },
+      ])
+
+      setIsWorkspaceLoading(false)
+    }
+
+    void loadWorkspaceContext()
+
+    return () => {
+      isMounted = false
+    }
+  }, [navigate])
 
   useEffect(() => {
     const savedTheme =
@@ -440,6 +585,19 @@ function HomePage() {
 
                   type:
                     selectedContext.type,
+                },
+
+                ownerContext: {
+                  preferredName: ownerContext.preferredName,
+                  currentPriority: ownerContext.currentPriority,
+                  businesses: ownerContext.businesses.map((business) => ({
+                    id: business.id,
+                    name: business.name,
+                    businessType: business.businessType,
+                    description: business.description,
+                    isPrimary: business.isPrimary,
+                  })),
+                  memories: ownerContext.memories,
                 },
               }),
             },
