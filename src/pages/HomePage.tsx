@@ -214,8 +214,6 @@ function HomePage() {
     let isMounted = true
 
     const loadWorkspaceContext = async () => {
-      setIsWorkspaceLoading(true)
-
       const { data: { user }, error: userError } =
         await supabase.auth.getUser()
 
