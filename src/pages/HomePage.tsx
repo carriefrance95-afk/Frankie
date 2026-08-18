@@ -136,9 +136,6 @@ function HomePage() {
       memories: [],
     })
 
-  const [isWorkspaceLoading, setIsWorkspaceLoading] =
-    useState(true)
-
   const workspaceContexts: WorkspaceContext[] = [
     {
       id: 'master',
@@ -329,7 +326,6 @@ function HomePage() {
         },
       ])
 
-      setIsWorkspaceLoading(false)
     }
 
     void loadWorkspaceContext()
