@@ -560,6 +560,19 @@ function HomePage() {
       )
 
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        const accessToken =
+          session?.access_token
+
+        if (!accessToken) {
+          throw new Error(
+            'Frankie session is missing.',
+          )
+        }
+
         const response =
           await fetch(
             '/api/chat',
@@ -569,6 +582,8 @@ function HomePage() {
               headers: {
                 'Content-Type':
                   'application/json',
+                Authorization:
+                  `Bearer ${accessToken}`,
               },
 
               body: JSON.stringify({
