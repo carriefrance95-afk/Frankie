@@ -53,6 +53,22 @@
   --border-strong: rgba(159,91,45,.25);
 }
 
+
+.frankie-home[data-workspace-theme="light"] .message-bubble {
+  color: #51483f;
+  background: rgba(255,255,255,.52);
+  border-color: rgba(126,87,51,.16);
+}
+
+.frankie-home[data-workspace-theme="light"] .message-bubble p {
+  color: #51483f;
+}
+
+.frankie-home[data-workspace-theme="light"] .message-heading strong {
+  color: #a65328;
+}
+
+
 .home-ember {
   position: fixed;
   border-radius: 999px;
@@ -70,7 +86,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 17px 14px 14px;
+  padding: 12px 14px 10px;
   border-right: 1px solid var(--border);
   background: var(--sidebar-bg);
   backdrop-filter: blur(18px);
@@ -80,7 +96,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 6px 13px;
+  padding: 0 6px 9px;
 }
 .sidebar-frankie-wrap {
   width: 42px;
@@ -97,7 +113,7 @@
 
 .workspace-context-area {
   margin: 0 0 8px;
-  padding: 12px 6px 13px;
+  padding: 9px 6px 9px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -142,16 +158,16 @@
   padding: 3px 2px 12px;
   scrollbar-width: thin;
 }
-.nav-group { margin-top: 11px; }
-.nav-group:first-child { margin-top: 4px; }
+.nav-group { margin-top: 7px; }
+.nav-group:first-child { margin-top: 2px; }
 .nav-group-label { margin: 0 8px 5px; }
 .frankie-nav-item {
   width: 100%;
-  min-height: 34px;
+  min-height: 30px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 9px;
+  padding: 5px 9px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -184,7 +200,7 @@
   font-weight: 800;
 }
 
-.sidebar-account-wrap { position: relative; border-top: 1px solid var(--border); padding-top: 10px; }
+.sidebar-account-wrap { position: relative; border-top: 1px solid var(--border); padding-top: 7px; }
 .account-button {
   width: 100%;
   display: grid;
@@ -296,7 +312,7 @@
 .workspace-body.with-insight-rail {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0,1fr) 326px;
+  grid-template-columns: minmax(0,1fr) 300px;
 }
 .conversation-panel {
   min-width: 0;
@@ -357,7 +373,7 @@
 .insight-rail {
   min-height: 0;
   overflow-y: auto;
-  padding: 22px 19px 20px;
+  padding: 18px 16px 16px;
   background: var(--rail-bg);
 }
 .insight-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -366,11 +382,11 @@
 .insight-view-chip { padding: 5px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); font-size: .55rem; }
 .insight-date { display: flex; gap: 7px; margin-top: 13px; color: var(--text-muted); font-size: .67rem; }
 .insight-date strong { color: var(--text-secondary); }
-.insight-section { padding: 15px 0; border-top: 1px solid var(--border); }
+.insight-section { padding: 12px 0; border-top: 1px solid var(--border); }
 .insight-section:first-of-type { margin-top: 15px; }
 .insight-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; color: var(--text-secondary); font-size: .65rem; font-weight: 750; }
 .insight-section-title button { border: 0; background: transparent; color: var(--accent); font-size: .58rem; cursor: pointer; }
-.insight-empty,.attention-item,.priority-row { padding: 10px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.insight-empty,.attention-item,.priority-row { padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
 .insight-empty strong,.attention-item strong,.priority-row strong { display: block; color: var(--text-secondary); font-size: .65rem; }
 .insight-empty p,.attention-item p,.priority-row p { margin: 4px 0 0; color: var(--text-muted); font-size: .61rem; line-height: 1.45; }
 .priority-row { display: flex; gap: 9px; }
@@ -432,7 +448,7 @@
 .settings-future > span { flex: 0 0 auto; padding: 5px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-faint); font-size: .53rem; }
 
 @media (max-width: 1120px) {
-  .workspace-body.with-insight-rail { grid-template-columns: minmax(0,1fr) 292px; }
+  .workspace-body.with-insight-rail { grid-template-columns: minmax(0,1fr) 276px; }
   .frankie-home { grid-template-columns: 224px minmax(0,1fr); }
 }
 
