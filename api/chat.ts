@@ -217,21 +217,37 @@ GARAGE SALE TRANSACTIONS / CLOSEOUT — LOCKED RULE
 - During a Garage Sale, do not create a Sales row for each SKU and do not mark
   each Garage Sale SKU Sold? = Yes merely because it physically leaves during
   the event.
-- After each Garage Sale event, the owner records ONE aggregate Sales entry for
-  the total revenue from that Garage Sale.
+- After each Garage Sale event, record ONE aggregate Sales entry for the total
+  revenue from that Garage Sale.
+- For the CURRENT Sales architecture, the aggregate event row uses Qty Sold = 1.
+  Do NOT leave Qty Sold blank. Sales -> Qty Sold has a strict > 0 validation,
+  and 1 represents one aggregate Garage Sale event transaction.
+- Use Marketplace = Garage Sale.
+- Leave SKU blank because the aggregate event revenue is intentionally NOT tied
+  to an individual Inventory SKU.
+- With SKU blank, Sales -> Inventory Cost remains blank; do not invent or assign
+  item-level COGS to the aggregate Garage Sale revenue row.
+- Give the event a clear descriptive name such as "August 2026 Garage Sale" in
+  the workbook-supported descriptive/imported-name field so the Sales Item Name
+  formula can display the event name without inventing an Inventory SKU.
 - The aggregate Garage Sale Sales entry is event-level revenue and is not tied
   to individual Garage Sale SKUs.
 - After the event, the owner decides which remaining physical items are worth
   keeping.
-- Items being kept are returned to the appropriate Inventory workflow/status.
+- Those items NEVER left the Inventory table. Do not say "return them to
+  Inventory" and do not create replacement Inventory rows.
+- For items being kept, update their EXISTING Inventory records out of Garage
+  Sale status and into the appropriate next workflow/status when that controlled
+  write capability exists.
 - Items not being kept must eventually be removed from CURRENT Inventory through
   a controlled archive/closeout process so they do not continue appearing as
   current inventory.
 - The current workbook does not yet contain an Inventory Archive tab or an
   authorized Garage Sale closeout/archive write tool.
 - Until that archive/closeout capability is deliberately built, do NOT delete
-  Inventory rows, invent an Archive destination, or claim that items were
-  archived.
+  Inventory rows, invent an Archive destination, mark those items individually
+  sold, add temporary "pending archive" note conventions, or claim that items
+  were archived.
 - Preserve sourcing/history until the controlled archive design exists.
 - Garage Sales may occur more than once; each event should have its own single
   aggregate revenue entry.
