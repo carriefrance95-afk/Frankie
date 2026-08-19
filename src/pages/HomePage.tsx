@@ -75,6 +75,19 @@ type OwnerContext = {
   memories: FrankieMemory[]
 }
 
+type GoogleStatusResponse = {
+  connected?: boolean
+  verified?: boolean
+  spreadsheetName?: string
+  sheets?: string[]
+  error?: string
+}
+
+type GoogleConnectResponse = {
+  url?: string
+  error?: string
+}
+
 const THEME_STORAGE_KEY =
   'frankie-workspace-theme'
 
@@ -107,6 +120,11 @@ function HomePage() {
   const [
     isSigningOut,
     setIsSigningOut,
+  ] = useState(false)
+
+  const [
+    isConnectingGoogle,
+    setIsConnectingGoogle,
   ] = useState(false)
 
   const [
@@ -733,6 +751,120 @@ function HomePage() {
       }
     }
 
+  const handleGoogleConnection =
+    async () => {
+      if (isConnectingGoogle) {
+        return
+      }
+
+      setIsConnectingGoogle(true)
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        const accessToken =
+          session?.access_token
+
+        if (!accessToken) {
+          window.alert(
+            'Your Frankie session expired. Please sign in again.',
+          )
+
+          navigate('/signin', {
+            replace: true,
+          })
+
+          return
+        }
+
+        const statusResponse = await fetch(
+          '/api/google/status',
+          {
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+          },
+        )
+
+        const statusData =
+          (await statusResponse.json()) as GoogleStatusResponse
+
+        if (
+          statusResponse.ok &&
+          statusData.connected &&
+          statusData.verified
+        ) {
+          const tabText =
+            statusData.sheets &&
+            statusData.sheets.length > 0
+              ? `\n\nTabs Frankie can see: ${statusData.sheets.join(', ')}`
+              : ''
+
+          window.alert(
+            `Google Sheets is connected to ${statusData.spreadsheetName ?? 'the Reseller OS'}.${tabText}`,
+          )
+
+          return
+        }
+
+        if (
+          statusData.connected &&
+          !statusData.verified
+        ) {
+          window.alert(
+            statusData.error ??
+              'Google is connected, but Frankie cannot open the Reseller OS yet.',
+          )
+
+          return
+        }
+
+        const connectResponse = await fetch(
+          '/api/google/connect',
+          {
+            method: 'POST',
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+              'Content-Type':
+                'application/json',
+            },
+          },
+        )
+
+        const connectData =
+          (await connectResponse.json()) as GoogleConnectResponse
+
+        if (
+          !connectResponse.ok ||
+          !connectData.url
+        ) {
+          throw new Error(
+            connectData.error ??
+              'Google connection could not start.',
+          )
+        }
+
+        window.location.assign(
+          connectData.url,
+        )
+      } catch (error) {
+        console.error(
+          'Frankie Google connection error:',
+          error,
+        )
+
+        window.alert(
+          'I had trouble opening the Google connection. Try again.',
+        )
+      } finally {
+        setIsConnectingGoogle(false)
+      }
+    }
+
   const toggleListening =
     () => {
       if (isListening) {
@@ -977,6 +1109,11 @@ function HomePage() {
                     ? 'frankie-nav-item active'
                     : 'frankie-nav-item'
                 }
+                disabled={
+                  isConnectingGoogle &&
+                  item.label ===
+                    'Connections'
+                }
                 onClick={() => {
                   if (
                     item.label ===
@@ -988,6 +1125,15 @@ function HomePage() {
                       ) =>
                         !current,
                     )
+
+                    return
+                  }
+
+                  if (
+                    item.label ===
+                    'Connections'
+                  ) {
+                    void handleGoogleConnection()
                   }
                 }}
               >
