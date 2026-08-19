@@ -3,8 +3,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 type BusinessKitRequest = {
-  action?: 'structure' | 'read_range'
+  action?: 'structure' | 'read_range' | 'mark_garage_sale'
   range?: string
+  sku?: string
 }
 
 type GoogleConnectionRow = {
@@ -44,6 +45,12 @@ type SpreadsheetValues = {
   range?: string
   majorDimension?: string
   values?: unknown[][]
+}
+
+type GoogleApiError = {
+  error?: {
+    message?: string
+  }
 }
 
 function getRequiredEnv(name: string): string {
@@ -390,7 +397,7 @@ export default {
 
         return Response.json({
           ok: true,
-          mode: 'read_only',
+          mode: 'restricted_write',
           spreadsheetId:
             metadata.spreadsheetId ??
             connection.spreadsheet_id,
@@ -491,7 +498,7 @@ export default {
 
         return Response.json({
           ok: true,
-          mode: 'read_only',
+          mode: 'restricted_write',
           spreadsheetName:
             connection.spreadsheet_name,
           range:
@@ -500,6 +507,400 @@ export default {
           values:
             values.values ??
             [],
+        })
+      }
+
+      if (
+        action === 'mark_garage_sale'
+      ) {
+        const sku =
+          body.sku?.trim()
+
+        if (
+          !sku ||
+          sku.length > 100 ||
+          /[\r\n\0]/.test(sku)
+        ) {
+          return Response.json(
+            {
+              error:
+                'A valid SKU is required.',
+            },
+            { status: 400 },
+          )
+        }
+
+        const inventoryRange =
+          encodeURIComponent(
+            'Inventory!A6:O1216',
+          )
+
+        const inventoryUrl =
+          new URL(
+            `https://sheets.googleapis.com/v4/spreadsheets/${connection.spreadsheet_id}/values/${inventoryRange}`,
+          )
+
+        inventoryUrl.searchParams.set(
+          'majorDimension',
+          'ROWS',
+        )
+
+        const inventoryResponse =
+          await fetch(
+            inventoryUrl,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${accessToken}`,
+              },
+            },
+          )
+
+        const inventoryData =
+          (await inventoryResponse.json()) as SpreadsheetValues &
+            GoogleApiError
+
+        if (!inventoryResponse.ok) {
+          console.error(
+            'Garage Sale inventory read error:',
+            inventoryData,
+          )
+
+          return Response.json(
+            {
+              error:
+                'Frankie could not verify Inventory before the Garage Sale update.',
+            },
+            { status: 502 },
+          )
+        }
+
+        const rows =
+          inventoryData.values ?? []
+
+        const matches: Array<{
+          rowNumber: number
+          values: unknown[]
+        }> = []
+
+        rows.forEach(
+          (row, index) => {
+            const rowSku =
+              String(
+                row?.[0] ?? '',
+              ).trim()
+
+            if (
+              rowSku.toLowerCase() ===
+              sku.toLowerCase()
+            ) {
+              matches.push({
+                rowNumber:
+                  index + 6,
+                values: row,
+              })
+            }
+          },
+        )
+
+        if (
+          matches.length === 0
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              reason:
+                'sku_not_found',
+              sku,
+              message:
+                `No Inventory record was found for SKU ${sku}. Nothing was changed.`,
+            },
+            { status: 404 },
+          )
+        }
+
+        if (
+          matches.length > 1
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              reason:
+                'duplicate_sku',
+              sku,
+              matches:
+                matches.map(
+                  (match) =>
+                    match.rowNumber,
+                ),
+              message:
+                `More than one Inventory row matches SKU ${sku}. Nothing was changed.`,
+            },
+            { status: 409 },
+          )
+        }
+
+        const match =
+          matches[0]
+
+        const itemName =
+          String(
+            match.values?.[2] ??
+              '',
+          ).trim()
+
+        const qtyRaw =
+          match.values?.[6]
+
+        const qty =
+          typeof qtyRaw ===
+          'number'
+            ? qtyRaw
+            : Number(qtyRaw ?? 0)
+
+        const currentStatus =
+          String(
+            match.values?.[11] ??
+              '',
+          ).trim()
+
+        const sold =
+          String(
+            match.values?.[14] ??
+              '',
+          ).trim()
+
+        if (
+          sold.toLowerCase() ===
+          'yes'
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              reason:
+                'already_sold',
+              sku,
+              itemName,
+              rowNumber:
+                match.rowNumber,
+              currentStatus,
+              sold,
+              message:
+                `${sku} is already marked Sold? = Yes. Nothing was changed.`,
+            },
+            { status: 409 },
+          )
+        }
+
+        if (
+          Number.isFinite(qty) &&
+          qty > 1
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              reason:
+                'quantity_requires_clarification',
+              sku,
+              itemName,
+              rowNumber:
+                match.rowNumber,
+              qty,
+              currentStatus,
+              message:
+                `${sku} has Qty ${qty}. Clarify whether the entire Inventory lot should go to the Garage Sale. Nothing was changed.`,
+            },
+            { status: 409 },
+          )
+        }
+
+        if (
+          currentStatus.toLowerCase() ===
+          'garage sale'
+        ) {
+          return Response.json({
+            ok: true,
+            action:
+              'mark_garage_sale',
+            changed: false,
+            sku,
+            itemName,
+            rowNumber:
+              match.rowNumber,
+            previousValue:
+              currentStatus,
+            newValue:
+              currentStatus,
+            verified: true,
+            message:
+              `${sku} is already marked Garage Sale. No write was needed.`,
+          })
+        }
+
+        const targetRange =
+          `Inventory!L${match.rowNumber}`
+
+        const encodedTargetRange =
+          encodeURIComponent(
+            targetRange,
+          )
+
+        const updateUrl =
+          new URL(
+            `https://sheets.googleapis.com/v4/spreadsheets/${connection.spreadsheet_id}/values/${encodedTargetRange}`,
+          )
+
+        updateUrl.searchParams.set(
+          'valueInputOption',
+          'USER_ENTERED',
+        )
+
+        const updateResponse =
+          await fetch(
+            updateUrl,
+            {
+              method: 'PUT',
+              headers: {
+                Authorization:
+                  `Bearer ${accessToken}`,
+                'Content-Type':
+                  'application/json',
+              },
+              body: JSON.stringify({
+                range:
+                  targetRange,
+                majorDimension:
+                  'ROWS',
+                values: [
+                  [
+                    'Garage Sale',
+                  ],
+                ],
+              }),
+            },
+          )
+
+        const updateData =
+          (await updateResponse.json()) as GoogleApiError
+
+        if (!updateResponse.ok) {
+          console.error(
+            'Garage Sale write error:',
+            updateData,
+          )
+
+          return Response.json(
+            {
+              error:
+                updateData.error
+                  ?.message ||
+                'Frankie could not save the Garage Sale update.',
+            },
+            { status: 502 },
+          )
+        }
+
+        const verifyUrl =
+          new URL(
+            `https://sheets.googleapis.com/v4/spreadsheets/${connection.spreadsheet_id}/values/${encodedTargetRange}`,
+          )
+
+        const verifyResponse =
+          await fetch(
+            verifyUrl,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${accessToken}`,
+              },
+            },
+          )
+
+        const verifyData =
+          (await verifyResponse.json()) as SpreadsheetValues &
+            GoogleApiError
+
+        if (!verifyResponse.ok) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              changed: true,
+              verified: false,
+              sku,
+              itemName,
+              rowNumber:
+                match.rowNumber,
+              previousValue:
+                currentStatus,
+              message:
+                'The write was sent, but Frankie could not verify the saved value.',
+            },
+            { status: 502 },
+          )
+        }
+
+        const verifiedValue =
+          String(
+            verifyData.values?.[0]?.[0] ??
+              '',
+          ).trim()
+
+        if (
+          verifiedValue !==
+          'Garage Sale'
+        ) {
+          return Response.json(
+            {
+              ok: false,
+              action:
+                'mark_garage_sale',
+              changed: true,
+              verified: false,
+              sku,
+              itemName,
+              rowNumber:
+                match.rowNumber,
+              previousValue:
+                currentStatus,
+              observedValue:
+                verifiedValue,
+              message:
+                'The saved value did not verify as Garage Sale.',
+            },
+            { status: 502 },
+          )
+        }
+
+        return Response.json({
+          ok: true,
+          action:
+            'mark_garage_sale',
+          changed: true,
+          verified: true,
+          sku,
+          itemName,
+          rowNumber:
+            match.rowNumber,
+          previousValue:
+            currentStatus,
+          newValue:
+            'Garage Sale',
+          changedField:
+            'Inventory Listing Status',
+          changedCell:
+            targetRange,
+          message:
+            `${sku} was verified and marked Garage Sale successfully.`,
         })
       }
 

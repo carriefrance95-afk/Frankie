@@ -68,6 +68,10 @@ type BusinessKitToolArgs = {
   range: string | null
 }
 
+type GarageSaleToolArgs = {
+  sku: string
+}
+
 const FRANKIE_INSTRUCTIONS = `
 ${FRANKIE_CORE_INSTRUCTIONS}
 
@@ -90,21 +94,30 @@ WORKING STYLE
   owner to rebuild or change it.
 
 RESELLER OS / BUSINESS KIT
-Frankie has read-only access to the owner's connected Reseller OS Google Sheet.
+Frankie has read access to the owner's connected Reseller OS Google Sheet plus
+ONE narrowly controlled write capability: marking a verified single-item
+Inventory SKU for Garage Sale.
 
 When the owner asks about inventory, sales, shipping, sourcing, marketplace
 reconciliation, workbook structure, dashboard data, or anything that may be
 answered from the Reseller OS:
-- USE the Business Kit tool instead of guessing.
+- USE the Business Kit read tool instead of guessing.
 - If you do not know the exact sheet/tab or range, inspect the workbook
   structure first.
 - Then read only the smallest useful range needed to answer.
 - Treat workbook data as the source of truth for questions about that workbook.
-- Never claim you changed the workbook. This version is READ ONLY.
-- If the owner asks you to update something, explain briefly that workbook
-  writes are not enabled yet, but you can inspect the relevant data first.
 - Do not dump raw spreadsheet rows unless the owner asks. Interpret the data and
   answer naturally.
+
+GARAGE SALE WRITE PERMISSION
+- If the owner clearly asks to put, move, mark, or send a specific SKU to the
+  Garage Sale, use the controlled Garage Sale write tool.
+- The tool is allowed to change ONLY Inventory -> Listing Status to Garage Sale.
+- Do not claim success unless the tool returns verified=true.
+- If the tool reports Qty > 1, duplicate SKU, sold item, missing SKU, or another
+  conflict, explain the issue and do not pretend a write occurred.
+- Do not ask the owner to reconfirm an unambiguous request merely for ceremony.
+- All other workbook writes remain disabled.
 `
 
 const BUSINESS_KIT_TOOL = {
@@ -127,6 +140,26 @@ const BUSINESS_KIT_TOOL = {
       },
     },
     required: ['action', 'range'],
+  },
+  strict: true,
+} as const
+
+const GARAGE_SALE_WRITE_TOOL = {
+  type: 'function',
+  name: 'mark_inventory_for_garage_sale',
+  description:
+    'Safely mark one verified Inventory SKU for Garage Sale. This tool can change only Inventory Listing Status to Garage Sale. Use only when the owner clearly asks to mark a specific SKU for the Garage Sale.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      sku: {
+        type: 'string',
+        description:
+          'Exact Inventory SKU requested by the owner.',
+      },
+    },
+    required: ['sku'],
   },
   strict: true,
 } as const
@@ -193,8 +226,12 @@ function getFunctionCalls(
   return data.output.filter(
     (item) =>
       item.type === 'function_call' &&
-      item.name ===
-        'inspect_reseller_os' &&
+      (
+        item.name ===
+          'inspect_reseller_os' ||
+        item.name ===
+          'mark_inventory_for_garage_sale'
+      ) &&
       typeof item.call_id ===
         'string',
   )
@@ -280,6 +317,60 @@ async function runBusinessKitTool(
       error:
         text ||
         'Business Kit returned an unreadable response.',
+    }
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      result: data,
+    }
+  }
+
+  return data
+}
+
+async function runGarageSaleWriteTool(
+  request: Request,
+  sessionToken: string,
+  args: GarageSaleToolArgs,
+): Promise<unknown> {
+  const endpoint = new URL(
+    '/api/business-kit',
+    request.url,
+  )
+
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
+      },
+      body: JSON.stringify({
+        action:
+          'mark_garage_sale',
+        sku: args.sku,
+      }),
+    },
+  )
+
+  const text =
+    await response.text()
+
+  let data: unknown
+
+  try {
+    data = JSON.parse(text)
+  } catch {
+    data = {
+      error:
+        text ||
+        'Garage Sale write returned an unreadable response.',
     }
   }
 
@@ -438,6 +529,7 @@ ${contextInstructions}
             input,
             tools: [
               BUSINESS_KIT_TOOL,
+              GARAGE_SALE_WRITE_TOOL,
             ],
             tool_choice: 'auto',
           },
@@ -475,28 +567,56 @@ ${contextInstructions}
           const functionCall of
           functionCalls
         ) {
-          let args:
-            BusinessKitToolArgs
+          let result: unknown
 
-          try {
-            args = JSON.parse(
-              functionCall.arguments ??
-                '{}',
-            ) as BusinessKitToolArgs
-          } catch {
-            args = {
-              action:
-                'structure',
-              range: null,
+          if (
+            functionCall.name ===
+            'mark_inventory_for_garage_sale'
+          ) {
+            let args:
+              GarageSaleToolArgs
+
+            try {
+              args = JSON.parse(
+                functionCall.arguments ??
+                  '{}',
+              ) as GarageSaleToolArgs
+            } catch {
+              args = {
+                sku: '',
+              }
             }
-          }
 
-          const result =
-            await runBusinessKitTool(
-              request,
-              sessionToken,
-              args,
-            )
+            result =
+              await runGarageSaleWriteTool(
+                request,
+                sessionToken,
+                args,
+              )
+          } else {
+            let args:
+              BusinessKitToolArgs
+
+            try {
+              args = JSON.parse(
+                functionCall.arguments ??
+                  '{}',
+              ) as BusinessKitToolArgs
+            } catch {
+              args = {
+                action:
+                  'structure',
+                range: null,
+              }
+            }
+
+            result =
+              await runBusinessKitTool(
+                request,
+                sessionToken,
+                args,
+              )
+          }
 
           toolOutputs.push({
             type:
@@ -526,6 +646,7 @@ ${contextInstructions}
               input: toolOutputs,
               tools: [
                 BUSINESS_KIT_TOOL,
+                GARAGE_SALE_WRITE_TOOL,
               ],
               tool_choice: 'auto',
             },
