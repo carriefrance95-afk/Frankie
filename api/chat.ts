@@ -2,6 +2,7 @@
 
 import { FRANKIE_CORE_INSTRUCTIONS } from './frankie/core.js'
 import { FRANKIE_PERSONALITY_INSTRUCTIONS } from './frankie/personality.js'
+import { RESELLER_OS_INSTRUCTIONS } from './frankie/reseller-os.js'
 
 type ChatMessage = {
   role: 'user' | 'assistant'
@@ -71,6 +72,8 @@ const FRANKIE_INSTRUCTIONS = `
 ${FRANKIE_CORE_INSTRUCTIONS}
 
 ${FRANKIE_PERSONALITY_INSTRUCTIONS}
+
+${RESELLER_OS_INSTRUCTIONS}
 
 WORKING STYLE
 - Listen before prescribing.
