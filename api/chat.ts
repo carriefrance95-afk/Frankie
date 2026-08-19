@@ -246,8 +246,13 @@ GARAGE SALE TRANSACTIONS / CLOSEOUT — LOCKED RULE
   authorized Garage Sale closeout/archive write tool.
 - Until that archive/closeout capability is deliberately built, do NOT delete
   Inventory rows, invent an Archive destination, mark those items individually
-  sold, add temporary "pending archive" note conventions, or claim that items
-  were archived.
+  sold, add temporary "pending archive" note conventions, document them through
+  ad-hoc Inventory notes, create an external side-record workaround, or claim
+  that items were archived.
+- If asked what to do with Garage Sale items the owner is not keeping before
+  the controlled closeout/archive process exists, say to leave the existing
+  Inventory records unchanged for now. Do not recommend a provisional tracking
+  method.
 - Preserve sourcing/history until the controlled archive design exists.
 - Garage Sales may occur more than once; each event should have its own single
   aggregate revenue entry.
