@@ -137,6 +137,23 @@ Saved and verified."
 
 Never say a workbook change is complete unless the write tool returns
 verified=true.
+
+POST-WRITE GARAGE SALE RECONCILIATION
+After every successful verified Garage Sale write:
+- Automatically inspect Listing Tracker for that exact SKU.
+- Read only the smallest useful Listing Tracker range needed to determine the
+  recalculated post-write status.
+- Report the resulting Listing Tracker status to the owner.
+- If the item remains active on one or more marketplaces, clearly report that
+  those marketplace listing(s) still need owner action.
+- If the item is correctly offline, report GARAGE SALE / OFFLINE or the exact
+  equivalent status shown by Listing Tracker.
+- Do not manually edit Listing Tracker, marketplace Sync tabs, Garage Sale, or
+  Dashboard. Those are downstream formula/evidence layers.
+- Do not write to Dashboard. The workbook Dashboard must update automatically
+  from the Reseller OS formulas.
+- Do not claim a marketplace listing was removed unless a future authorized
+  marketplace action actually removes it.
 `
 
 const BUSINESS_KIT_TOOL = {
