@@ -410,6 +410,127 @@ Unmatched marketplace records may correspond to inventory not yet reconciled.
 When interpreting historical records:
 preserve history rather than forcing every row into the current active state.
 
+COST FLOW — LOCKED RULE
+
+The Reseller OS already has an established costing chain:
+
+Sourcing Total Investment
+→ Sourcing Items Acquired
+→ Sourcing Cost / Item
+→ Inventory Unit Cost
+→ Sales Inventory Cost
+→ Sales Final Item Cost / Net Profit
+→ Dashboard Inventory Cost and profit reporting
+
+Specific rules:
+- Sourcing Total Investment is the real acquisition cost:
+  Purchase Price + Buyer Fees + Tax + Other Cost.
+- Sourcing Items Acquired is derived from the Inventory quantity assigned to that Sourcing ID.
+- Sourcing Cost / Item is calculated as Total Investment ÷ Items Acquired.
+- Inventory Unit Cost automatically pulls the Sourcing Cost / Item using the Inventory Sourcing ID.
+- Sales Inventory Cost pulls Inventory Unit Cost by SKU and multiplies by Qty Sold.
+- Estimated Value is resale value only. It must never be substituted for cost.
+- Do not invent alternative allocation methods such as tiered allocation, weighted-value allocation, percentage allocation, or manual splits unless the owner explicitly chooses to redesign the costing method.
+- If a Sourcing record has no Items Acquired and therefore no Cost / Item, first determine whether Inventory has been properly linked to that Sourcing ID. Do not invent a cost.
+- Do not create artificial bulk-lot Inventory records solely to make the costing math work.
+
+SALE → INVENTORY BEHAVIOR — LOCKED RULE
+
+- A completed sale is recorded in Sales.
+- Sales should be linked to the correct Inventory SKU whenever a confident match exists.
+- For a normal single-item Inventory record, do NOT automatically reduce Inventory Qty to 0.
+- Preserve the historical Inventory row and original Qty.
+- Mark Inventory → Sold? = Yes when the item is confirmed sold.
+- Do not assume Inventory Listing Status must be changed to "Sold"; follow the workbook's actual Listing Status workflow.
+- Listing Tracker uses Inventory Sold? together with marketplace Sync data to identify sold items that are still active online.
+- If a sale involves a lot, partial quantity, child SKUs, or another special inventory structure, inspect that specific Inventory record before changing Qty.
+- Never automatically subtract Qty merely because Qty Sold exists in Sales.
+- Shipping records are keyed primarily by Order # and pull Sale ID, SKU, and Order Date from Sales when the Order # matches.
+
+SHIPPING — LOCKED RULES
+
+- The Shipping shipment table begins at row 9.
+- A real shipment record is identified by a populated Shipping → Order #.
+- Do not count a row as a shipment merely because another field such as Status,
+  Sale ID, SKU, Carrier, or Ship Date contains a value.
+- Shipping → Sale ID, SKU, and Order Date are formula-driven from Sales by matching
+  Shipping Order # to Sales Order #.
+- Do not manually overwrite those formula-driven fields.
+- Shipping → Days to Ship is formula-driven from Order Date and Ship Date.
+- Shipping → Packaging Cost is calculated from Packaging Type and the Packaging Cost Library.
+- The Packaging Cost Library is a reference/calculation area, not shipment data.
+- Exclude summary cells, library rows, headers, formulas outside the shipment table,
+  helper content, and blank Order # rows when counting shipments.
+- Do not assume Shipping Packaging Cost automatically flows into Sales Shipping Cost
+  or Sales profit calculations unless an actual workbook formula or integration confirms it.
+- If a Shipping Order # does not match Sales, treat it as a reconciliation issue.
+  Do not invent Sale ID, SKU, or Order Date values and do not create a Sales record
+  without evidence that a legitimate sale is missing.
+
+  RETURNS — LOCKED RULES
+
+- Returns is keyed operationally by Order #.
+- When Returns → Order # matches Sales → Order #, the Returns tab formula-pulls:
+  Sale ID, SKU, and Marketplace.
+- Do not manually overwrite those formula-driven lookup fields unless the workbook
+  design is intentionally changed.
+- Returns → Net Return Impact is currently calculated as:
+  - Refund Amount
+  - Return Shipping Cost
+  + Fee Credits
+  - Other Return Cost
+- Fees Retained is tracked as a separate field, but do not claim it is included in
+  Net Return Impact unless the workbook formula is changed to include it.
+- Sales automatically pulls Refund Amount, Fee Credits, Fees Retained, and Return
+  Shipping Cost from Returns by matching Order #.
+- Do not tell the owner to manually recalculate Sales or Reports when formulas already
+  handle the return financial flow.
+- A return does NOT automatically make the item available for resale.
+- Item Received Back? confirms physical receipt only.
+- Item Disposition determines what should happen operationally next.
+- Relisted? records whether the returned item has actually been relisted.
+- Do not automatically change Inventory Qty, Sold?, Listing Status, or marketplace
+  listings merely because a Returns row exists.
+- Before restoring a returned item to an active selling workflow, verify:
+  Item Received Back? = Yes and the disposition supports resale.
+
+  MARKETPLACE RECONCILIATION — LOCKED RULES
+
+- Inventory → Sold? and Inventory → Listing Status are separate controls.
+- Do not assume "Sold" is or should be an Inventory Listing Status.
+- Sold state is determined by Inventory → Sold? = Yes.
+- Marketplace Sync tabs represent marketplace-reported state, not Inventory intent.
+- Listing Tracker compares Inventory state with marketplace state and surfaces conflicts.
+- SOLD — REMOVE ACTIVE LISTINGS means Inventory Sold? = Yes while one or more marketplace listings remain active.
+- GARAGE SALE — REMOVE ACTIVE LISTINGS means Inventory Listing Status = Garage Sale while one or more marketplace listings remain active.
+- GARAGE SALE / OFFLINE means the Garage Sale intent and marketplace reality are aligned.
+- For an unmatched Sync row, do not write a SKU anywhere until a confident Inventory match is established.
+- Once a match is established, inspect which record actually needs correction before writing.
+- Do not create duplicate Inventory merely to make a Sync row match.
+
+GARAGE SALE WRITE BEHAVIOR — LOCKED RULES
+
+- The controlling field for Garage Sale participation is:
+  Inventory → Listing Status = Garage Sale.
+- The Garage Sale tab is formula-driven from Inventory and must not be manually populated.
+- For a normal request such as:
+  "Put SKU ABC123 in the Garage Sale"
+  the intended write is ONLY:
+  Inventory → Listing Status = Garage Sale
+  for the verified Inventory record.
+- Do not change SKU, Qty, Storage Location, Sourcing ID, Unit Cost, Estimated Value,
+  Sold?, Notes, or any other field unless the owner specifically asks for that change.
+- Do not create child SKUs, split lots, or restructure Inventory automatically.
+- If Qty > 1 or the request clearly refers to only part of a lot, stop and clarify before writing.
+- SKU is the preferred identifier.
+- If no SKU is provided, identify the Inventory record using available evidence and require
+  a confident unique match before writing.
+- Do not require the owner to repeat or reconfirm an unambiguous request simply for ceremony.
+- Before writing, verify the current Inventory row and current Listing Status.
+- After writing, verify the new value saved successfully.
+- Then inspect Listing Tracker and report any active marketplace listings that still need removal.
+- Marking an item Garage Sale does NOT itself remove marketplace listings.
+
 --------------------------------------------------
 WRITE SAFETY — CURRENT POLICY
 --------------------------------------------------
