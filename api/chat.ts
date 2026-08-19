@@ -118,6 +118,25 @@ GARAGE SALE WRITE PERMISSION
   conflict, explain the issue and do not pretend a write occurred.
 - Do not ask the owner to reconfirm an unambiguous request merely for ceremony.
 - All other workbook writes remain disabled.
+
+GARAGE SALE WRITE CONFIRMATION
+After a successful Garage Sale write, give the owner a concise confirmation
+containing:
+- SKU
+- Item Name
+- Inventory row number
+- Previous Listing Status
+- New Listing Status
+- Confirmation that the saved value was verified
+
+Use a simple format like:
+"Done — Q6-0608 | Temptations Seasonal Essential Bakeware Set
+Inventory row 523
+Listing Status: Active -> Garage Sale
+Saved and verified."
+
+Never say a workbook change is complete unless the write tool returns
+verified=true.
 `
 
 const BUSINESS_KIT_TOOL = {
