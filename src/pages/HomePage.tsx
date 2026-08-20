@@ -123,11 +123,17 @@ const priorityRank: Record<TaskRecord['priority'], number> = {
 }
 
 function getLocalDateKey(date = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date)
+  }).formatToParts(date)
+
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  const day = parts.find((part) => part.type === 'day')?.value
+
+  return `${year}-${month}-${day}`
 }
 
 function HomePage() {
@@ -212,8 +218,7 @@ function HomePage() {
     .filter((task) => task.due_date === todayKey)
     .sort((a, b) => {
       const priorityDifference =
-        priorityRank[a.priority] -
-        priorityRank[b.priority]
+        priorityRank[a.priority] - priorityRank[b.priority]
 
       if (priorityDifference !== 0) {
         return priorityDifference
@@ -235,8 +240,7 @@ function HomePage() {
     )
     .sort((a, b) => {
       const priorityDifference =
-        priorityRank[a.priority] -
-        priorityRank[b.priority]
+        priorityRank[a.priority] - priorityRank[b.priority]
 
       if (priorityDifference !== 0) {
         return priorityDifference
@@ -250,8 +254,7 @@ function HomePage() {
   const topPriorityTasks = [...todoTasks]
     .sort((a, b) => {
       const priorityDifference =
-        priorityRank[a.priority] -
-        priorityRank[b.priority]
+        priorityRank[a.priority] - priorityRank[b.priority]
 
       if (priorityDifference !== 0) {
         return priorityDifference
@@ -274,16 +277,14 @@ function HomePage() {
 
   const today = new Date()
 
-  const dayName =
-    new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-    }).format(today)
+  const dayName = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+  }).format(today)
 
-  const monthAndDay =
-    new Intl.DateTimeFormat('en-US', {
-      month: 'long',
-      day: 'numeric',
-    }).format(today)
+  const monthAndDay = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+  }).format(today)
 
   const navigationGroups: NavigationGroup[] = [
     {
@@ -373,38 +374,37 @@ function HomePage() {
       return
     }
 
-    const { data, error } =
-      await supabase
-        .from('tasks')
-        .select(`
-          id,
-          owner_id,
-          business_id,
-          title,
-          description,
-          bucket,
-          status,
-          priority,
-          due_date,
-          due_time,
-          project,
-          assigned_to,
-          source_type,
-          source_name,
-          source_record_type,
-          source_record_id,
-          completed_at,
-          sort_order,
-          created_at,
-          updated_at
-        `)
-        .eq('owner_id', user.id)
-        .order('sort_order', {
-          ascending: true,
-        })
-        .order('created_at', {
-          ascending: false,
-        })
+    const { data, error } = await supabase
+      .from('tasks')
+      .select(`
+        id,
+        owner_id,
+        business_id,
+        title,
+        description,
+        bucket,
+        status,
+        priority,
+        due_date,
+        due_time,
+        project,
+        assigned_to,
+        source_type,
+        source_name,
+        source_record_type,
+        source_record_id,
+        completed_at,
+        sort_order,
+        created_at,
+        updated_at
+      `)
+      .eq('owner_id', user.id)
+      .order('sort_order', {
+        ascending: true,
+      })
+      .order('created_at', {
+        ascending: false,
+      })
 
     if (error) {
       console.error(
@@ -414,9 +414,7 @@ function HomePage() {
       return
     }
 
-    setTasks(
-      (data ?? []) as TaskRecord[],
-    )
+    setTasks((data ?? []) as TaskRecord[])
   }
 
   useEffect(() => {
@@ -433,327 +431,222 @@ function HomePage() {
   useEffect(() => {
     let isMounted = true
 
-    const loadWorkspaceContext =
-      async () => {
-        const {
-          data: { user },
-          error: userError,
-        } =
-          await supabase.auth.getUser()
+    const loadWorkspaceContext = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-        if (!isMounted) return
+      if (!isMounted) return
 
-        if (
-          userError ||
-          !user
-        ) {
-          navigate(
-            '/signin',
-            {
-              replace: true,
-            },
+      if (userError || !user) {
+        navigate('/signin', {
+          replace: true,
+        })
+        return
+      }
+
+      const [
+        profileResult,
+        businessResult,
+        memoryResult,
+        taskResult,
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select(
+            'preferred_name, onboarding_data',
           )
-          return
-        }
+          .eq('id', user.id)
+          .maybeSingle(),
 
-        const [
-          profileResult,
-          businessResult,
-          memoryResult,
-          taskResult,
-        ] =
-          await Promise.all([
-            supabase
-              .from('profiles')
-              .select(
-                'preferred_name, onboarding_data',
-              )
-              .eq(
-                'id',
-                user.id,
-              )
-              .maybeSingle(),
-
-            supabase
-              .from('businesses')
-              .select(
-                'id, name, business_type, description, is_primary',
-              )
-              .eq(
-                'owner_id',
-                user.id,
-              )
-              .order(
-                'created_at',
-                {
-                  ascending: true,
-                },
-              ),
-
-            supabase
-              .from(
-                'frankie_memories',
-              )
-              .select(
-                'business_id, memory_type, title, content, importance',
-              )
-              .eq(
-                'owner_id',
-                user.id,
-              )
-              .eq(
-                'is_active',
-                true,
-              )
-              .order(
-                'importance',
-                {
-                  ascending: false,
-                },
-              )
-              .order(
-                'updated_at',
-                {
-                  ascending: false,
-                },
-              ),
-
-            supabase
-              .from('tasks')
-              .select(`
-                id,
-                owner_id,
-                business_id,
-                title,
-                description,
-                bucket,
-                status,
-                priority,
-                due_date,
-                due_time,
-                project,
-                assigned_to,
-                source_type,
-                source_name,
-                source_record_type,
-                source_record_id,
-                completed_at,
-                sort_order,
-                created_at,
-                updated_at
-              `)
-              .eq(
-                'owner_id',
-                user.id,
-              )
-              .order(
-                'sort_order',
-                {
-                  ascending: true,
-                },
-              )
-              .order(
-                'created_at',
-                {
-                  ascending: false,
-                },
-              ),
-          ])
-
-        if (!isMounted) return
-
-        if (
-          profileResult.error
-        ) {
-          console.error(
-            'Frankie home profile load error:',
-            profileResult.error,
+        supabase
+          .from('businesses')
+          .select(
+            'id, name, business_type, description, is_primary',
           )
-        }
+          .eq('owner_id', user.id)
+          .order('created_at', {
+            ascending: true,
+          }),
 
-        if (
-          businessResult.error
-        ) {
-          console.error(
-            'Frankie home businesses load error:',
-            businessResult.error,
+        supabase
+          .from('frankie_memories')
+          .select(
+            'business_id, memory_type, title, content, importance',
           )
-        }
+          .eq('owner_id', user.id)
+          .eq('is_active', true)
+          .order('importance', {
+            ascending: false,
+          })
+          .order('updated_at', {
+            ascending: false,
+          }),
 
-        if (
-          memoryResult.error
-        ) {
-          console.error(
-            'Frankie home memories load error:',
-            memoryResult.error,
-          )
-        }
+        supabase
+          .from('tasks')
+          .select(`
+            id,
+            owner_id,
+            business_id,
+            title,
+            description,
+            bucket,
+            status,
+            priority,
+            due_date,
+            due_time,
+            project,
+            assigned_to,
+            source_type,
+            source_name,
+            source_record_type,
+            source_record_id,
+            completed_at,
+            sort_order,
+            created_at,
+            updated_at
+          `)
+          .eq('owner_id', user.id)
+          .order('sort_order', {
+            ascending: true,
+          })
+          .order('created_at', {
+            ascending: false,
+          }),
+      ])
 
-        if (
-          taskResult.error
-        ) {
-          console.error(
-            'Frankie home tasks load error:',
-            taskResult.error,
-          )
-        } else {
-          setTasks(
-            (taskResult.data ??
-              []) as TaskRecord[],
-          )
-        }
+      if (!isMounted) return
 
-        const profile =
-          profileResult.data as {
-            preferred_name?:
-              | string
-              | null
+      if (profileResult.error) {
+        console.error(
+          'Frankie home profile load error:',
+          profileResult.error,
+        )
+      }
 
-            onboarding_data?:
-              | {
-                  currentPriority?:
-                    | string
-                    | null
-                }
-              | null
-          } | null
+      if (businessResult.error) {
+        console.error(
+          'Frankie home businesses load error:',
+          businessResult.error,
+        )
+      }
 
-        const businesses:
-          BusinessProfile[] =
-          (
-            businessResult.data ??
-            []
-          ).map(
-            (business) => ({
-              id:
-                business.id,
+      if (memoryResult.error) {
+        console.error(
+          'Frankie home memories load error:',
+          memoryResult.error,
+        )
+      }
 
-              name:
-                business.name,
+      if (taskResult.error) {
+        console.error(
+          'Frankie home tasks load error:',
+          taskResult.error,
+        )
+      } else {
+        setTasks(
+          (taskResult.data ?? []) as TaskRecord[],
+        )
+      }
 
-              businessType:
-                business.business_type ??
-                null,
+      const profile = profileResult.data as {
+        preferred_name?: string | null
+        onboarding_data?: {
+          currentPriority?: string | null
+        } | null
+      } | null
 
-              description:
-                business.description ??
-                null,
-
-              isPrimary:
-                business.is_primary ===
-                true,
-            }),
-          )
-
-        const memories:
-          FrankieMemory[] =
-          (
-            memoryResult.data ??
-            []
-          ).map(
-            (memory) => ({
-              businessId:
-                memory.business_id ??
-                null,
-
-              memoryType:
-                memory.memory_type,
-
-              title:
-                memory.title,
-
-              content:
-                memory.content,
-
-              importance:
-                memory.importance,
-            }),
-          )
-
-        const priorityMemory =
-          memories.find(
-            (memory) =>
-              memory.memoryType ===
-              'current_priority',
-          )
-
-        const nextOwnerContext:
-          OwnerContext = {
-          preferredName:
-            profile?.preferred_name ??
-            null,
-
-          currentPriority:
-            profile?.onboarding_data
-              ?.currentPriority ??
-            priorityMemory?.content ??
-            null,
-
-          businesses,
-          memories,
-        }
-
-        setOwnerContext(
-          nextOwnerContext,
+      const businesses: BusinessProfile[] =
+        (businessResult.data ?? []).map(
+          (business) => ({
+            id: business.id,
+            name: business.name,
+            businessType:
+              business.business_type ?? null,
+            description:
+              business.description ?? null,
+            isPrimary:
+              business.is_primary === true,
+          }),
         )
 
-        const name =
-          nextOwnerContext.preferredName
+      const memories: FrankieMemory[] =
+        (memoryResult.data ?? []).map(
+          (memory) => ({
+            businessId:
+              memory.business_id ?? null,
+            memoryType:
+              memory.memory_type,
+            title:
+              memory.title,
+            content:
+              memory.content,
+            importance:
+              memory.importance,
+          }),
+        )
 
-        const businessNames =
-          businesses.map(
-            (business) =>
-              business.name,
-          )
+      const priorityMemory = memories.find(
+        (memory) =>
+          memory.memoryType === 'current_priority',
+      )
 
-        const businessText =
-          businessNames.length ===
-          0
-            ? 'your business'
-            : businessNames.length ===
-                1
-              ? businessNames[0]
-              : businessNames.length ===
-                  2
-                ? `${businessNames[0]} and ${businessNames[1]}`
-                : `${businessNames
-                    .slice(
-                      0,
-                      -1,
-                    )
-                    .join(', ')}, and ${businessNames.at(
-                    -1,
-                  )}`
-
-        const greeting =
-          name
-            ? `Good morning, ${name}. We're all set. I've got ${businessText} in your workspace${
-                nextOwnerContext.currentPriority
-                  ? `, and I know your starting priority is ${nextOwnerContext.currentPriority}`
-                  : ''
-              }. We'll keep building the picture as we work together.`
-            : `Good morning. We're all set. I've got ${businessText} in your workspace, and we'll keep building the picture as we work together.`
-
-        setMessages([
-          {
-            id:
-              Date.now(),
-            role:
-              'frankie',
-            text:
-              greeting,
-          },
-          {
-            id:
-              Date.now() +
-              1,
-            role:
-              'frankie',
-            text:
-              'Tell me what you have going on, and we’ll figure out what actually needs your attention first.',
-          },
-        ])
+      const nextOwnerContext: OwnerContext = {
+        preferredName:
+          profile?.preferred_name ?? null,
+        currentPriority:
+          profile?.onboarding_data?.currentPriority ??
+          priorityMemory?.content ??
+          null,
+        businesses,
+        memories,
       }
+
+      setOwnerContext(nextOwnerContext)
+
+      const name =
+        nextOwnerContext.preferredName
+
+      const businessNames =
+        businesses.map(
+          (business) => business.name,
+        )
+
+      const businessText =
+        businessNames.length === 0
+          ? 'your business'
+          : businessNames.length === 1
+            ? businessNames[0]
+            : businessNames.length === 2
+              ? `${businessNames[0]} and ${businessNames[1]}`
+              : `${businessNames
+                  .slice(0, -1)
+                  .join(', ')}, and ${businessNames.at(-1)}`
+
+      const greeting = name
+        ? `Good morning, ${name}. We're all set. I've got ${businessText} in your workspace${
+            nextOwnerContext.currentPriority
+              ? `, and I know your starting priority is ${nextOwnerContext.currentPriority}`
+              : ''
+          }. We'll keep building the picture as we work together.`
+        : `Good morning. We're all set. I've got ${businessText} in your workspace, and we'll keep building the picture as we work together.`
+
+      setMessages([
+        {
+          id: Date.now(),
+          role: 'frankie',
+          text: greeting,
+        },
+        {
+          id: Date.now() + 1,
+          role: 'frankie',
+          text:
+            'Tell me what you have going on, and we’ll figure out what actually needs your attention first.',
+        },
+      ])
+    }
 
     void loadWorkspaceContext()
 
@@ -769,16 +662,11 @@ function HomePage() {
       ) as ThemePreference | null
 
     if (
-      savedTheme ===
-        'dark' ||
-      savedTheme ===
-        'light' ||
-      savedTheme ===
-        'system'
+      savedTheme === 'dark' ||
+      savedTheme === 'light' ||
+      savedTheme === 'system'
     ) {
-      setThemePreference(
-        savedTheme,
-      )
+      setThemePreference(savedTheme)
     }
   }, [])
 
@@ -788,24 +676,18 @@ function HomePage() {
         '(prefers-color-scheme: dark)',
       )
 
-    const updateResolvedTheme =
-      () => {
-        if (
-          themePreference ===
-          'system'
-        ) {
-          setResolvedTheme(
-            mediaQuery.matches
-              ? 'dark'
-              : 'light',
-          )
-          return
-        }
-
+    const updateResolvedTheme = () => {
+      if (themePreference === 'system') {
         setResolvedTheme(
-          themePreference,
+          mediaQuery.matches
+            ? 'dark'
+            : 'light',
         )
+        return
       }
+
+      setResolvedTheme(themePreference)
+    }
 
     updateResolvedTheme()
 
@@ -823,18 +705,11 @@ function HomePage() {
   }, [themePreference])
 
   useEffect(() => {
-    conversationEndRef.current?.scrollIntoView(
-      {
-        behavior:
-          'smooth',
-        block:
-          'nearest',
-      },
-    )
-  }, [
-    messages,
-    isFrankieThinking,
-  ])
+    conversationEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    })
+  }, [messages, isFrankieThinking])
 
   useEffect(() => {
     return () => {
@@ -854,428 +729,339 @@ function HomePage() {
     )
   }
 
-  const speakText = (
-    text: string,
-  ) => {
-    if (
-      !(
-        'speechSynthesis' in
-        window
-      )
-    ) {
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) {
       return
     }
 
     window.speechSynthesis.cancel()
 
     const utterance =
-      new SpeechSynthesisUtterance(
-        text,
-      )
+      new SpeechSynthesisUtterance(text)
 
-    utterance.rate =
-      0.96
-    utterance.pitch =
-      1
-    utterance.volume =
-      1
+    utterance.rate = 0.96
+    utterance.pitch = 1
+    utterance.volume = 1
 
     window.speechSynthesis.speak(
       utterance,
     )
   }
 
-  const handleSignOut =
-    async () => {
-      if (
-        isSigningOut
-      ) {
-        return
-      }
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return
+    }
 
-      setIsSigningOut(true)
+    setIsSigningOut(true)
 
-      try {
-        window.speechSynthesis?.cancel()
-        recognitionRef.current?.stop()
+    try {
+      window.speechSynthesis?.cancel()
+      recognitionRef.current?.stop()
 
-        const {
-          error,
-        } =
-          await supabase.auth.signOut()
+      const { error } =
+        await supabase.auth.signOut()
 
-        if (error) {
-          console.error(
-            'Frankie sign out error:',
-            error,
-          )
-
-          window.alert(
-            'I had trouble signing you out. Try again.',
-          )
-
-          return
-        }
-
-        navigate(
-          '/signin',
-          {
-            replace: true,
-          },
-        )
-      } catch (error) {
+      if (error) {
         console.error(
-          'Frankie sign out failed:',
+          'Frankie sign out error:',
           error,
         )
 
         window.alert(
           'I had trouble signing you out. Try again.',
         )
-      } finally {
-        setIsSigningOut(false)
-      }
-    }
 
-  const handleSendMessage =
-    async () => {
-      const trimmedMessage =
-        message.trim()
-
-      if (
-        !trimmedMessage ||
-        isFrankieThinking
-      ) {
         return
       }
 
-      const userMessage:
-        ChatMessage = {
-        id: Date.now(),
-        role: 'user',
-        text:
-          trimmedMessage,
-      }
-
-      const updatedMessages = [
-        ...messages,
-        userMessage,
-      ]
-
-      const frankieMessageId =
-        Date.now() +
-        1
-
-      const streamingFrankieMessage:
-        ChatMessage = {
-        id:
-          frankieMessageId,
-        role:
-          'frankie',
-        text:
-          '',
-      }
-
-      setMessages([
-        ...updatedMessages,
-        streamingFrankieMessage,
-      ])
-
-      setMessage('')
-      setIsFrankieThinking(
-        true,
+      navigate('/signin', {
+        replace: true,
+      })
+    } catch (error) {
+      console.error(
+        'Frankie sign out failed:',
+        error,
       )
 
-      try {
-        const {
-          data: {
-            session,
+      window.alert(
+        'I had trouble signing you out. Try again.',
+      )
+    } finally {
+      setIsSigningOut(false)
+    }
+  }
+
+  const handleSendMessage = async () => {
+    const trimmedMessage = message.trim()
+
+    if (
+      !trimmedMessage ||
+      isFrankieThinking
+    ) {
+      return
+    }
+
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      role: 'user',
+      text: trimmedMessage,
+    }
+
+    const updatedMessages = [
+      ...messages,
+      userMessage,
+    ]
+
+    const frankieMessageId =
+      Date.now() + 1
+
+    const streamingFrankieMessage: ChatMessage = {
+      id: frankieMessageId,
+      role: 'frankie',
+      text: '',
+    }
+
+    setMessages([
+      ...updatedMessages,
+      streamingFrankieMessage,
+    ])
+
+    setMessage('')
+    setIsFrankieThinking(true)
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const accessToken =
+        session?.access_token
+
+      if (!accessToken) {
+        throw new Error(
+          'Frankie session is missing.',
+        )
+      }
+
+      const response = await fetch(
+        '/api/chat',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+            Authorization:
+              `Bearer ${accessToken}`,
           },
-        } =
-          await supabase.auth.getSession()
 
-        const accessToken =
-          session?.access_token
+          body: JSON.stringify({
+            currentLocalDate:
+              getLocalDateKey(),
 
-        if (
-          !accessToken
-        ) {
-          throw new Error(
-            'Frankie session is missing.',
-          )
+            messages:
+              updatedMessages.map(
+                (chatMessage) => ({
+                  role:
+                    chatMessage.role ===
+                    'frankie'
+                      ? 'assistant'
+                      : 'user',
+
+                  content:
+                    chatMessage.text,
+                }),
+              ),
+
+            workspaceContext: {
+              id:
+                selectedContext.id,
+              name:
+                selectedContext.name,
+              type:
+                selectedContext.type,
+            },
+
+            ownerContext: {
+              preferredName:
+                ownerContext.preferredName,
+
+              currentPriority:
+                ownerContext.currentPriority,
+
+              businesses:
+                ownerContext.businesses.map(
+                  (business) => ({
+                    id:
+                      business.id,
+                    name:
+                      business.name,
+                    businessType:
+                      business.businessType,
+                    description:
+                      business.description,
+                    isPrimary:
+                      business.isPrimary,
+                  }),
+                ),
+
+              memories:
+                ownerContext.memories,
+            },
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        const errorText =
+          await response.text()
+
+        console.error(
+          'Frankie API error:',
+          response.status,
+          errorText,
+        )
+
+        throw new Error(
+          'Frankie could not respond.',
+        )
+      }
+
+      if (!response.body) {
+        throw new Error(
+          'Frankie returned no response stream.',
+        )
+      }
+
+      const reader =
+        response.body.getReader()
+
+      const decoder =
+        new TextDecoder()
+
+      let fullReply = ''
+
+      while (true) {
+        const {
+          done,
+          value,
+        } = await reader.read()
+
+        if (done) {
+          break
         }
 
-        const response =
-          await fetch(
-            '/api/chat',
+        const chunk =
+          decoder.decode(
+            value,
             {
-              method:
-                'POST',
-
-              headers: {
-                'Content-Type':
-                  'application/json',
-
-                Authorization:
-                  `Bearer ${accessToken}`,
-              },
-
-              body:
-                JSON.stringify({
-                  messages:
-                    updatedMessages.map(
-                      (
-                        chatMessage,
-                      ) => ({
-                        role:
-                          chatMessage.role ===
-                          'frankie'
-                            ? 'assistant'
-                            : 'user',
-
-                        content:
-                          chatMessage.text,
-                      }),
-                    ),
-
-                  workspaceContext:
-                    {
-                      id:
-                        selectedContext.id,
-
-                      name:
-                        selectedContext.name,
-
-                      type:
-                        selectedContext.type,
-                    },
-
-                  ownerContext:
-                    {
-                      preferredName:
-                        ownerContext.preferredName,
-
-                      currentPriority:
-                        ownerContext.currentPriority,
-
-                      businesses:
-                        ownerContext.businesses.map(
-                          (
-                            business,
-                          ) => ({
-                            id:
-                              business.id,
-
-                            name:
-                              business.name,
-
-                            businessType:
-                              business.businessType,
-
-                            description:
-                              business.description,
-
-                            isPrimary:
-                              business.isPrimary,
-                          }),
-                        ),
-
-                      memories:
-                        ownerContext.memories,
-                    },
-                }),
+              stream: true,
             },
           )
 
-        if (
-          !response.ok
-        ) {
-          const errorText =
-            await response.text()
-
-          console.error(
-            'Frankie API error:',
-            response.status,
-            errorText,
-          )
-
-          throw new Error(
-            'Frankie could not respond.',
-          )
+        if (!chunk) {
+          continue
         }
 
-        if (
-          !response.body
-        ) {
-          throw new Error(
-            'Frankie returned no response stream.',
-          )
-        }
-
-        const reader =
-          response.body.getReader()
-
-        const decoder =
-          new TextDecoder()
-
-        let fullReply =
-          ''
-
-        while (true) {
-          const {
-            done,
-            value,
-          } =
-            await reader.read()
-
-          if (done) {
-            break
-          }
-
-          const chunk =
-            decoder.decode(
-              value,
-              {
-                stream:
-                  true,
-              },
-            )
-
-          if (!chunk) {
-            continue
-          }
-
-          fullReply +=
-            chunk
-
-          setMessages(
-            (
-              current,
-            ) =>
-              current.map(
-                (
-                  chatMessage,
-                ) =>
-                  chatMessage.id ===
-                  frankieMessageId
-                    ? {
-                        ...chatMessage,
-                        text:
-                          fullReply,
-                      }
-                    : chatMessage,
-              ),
-          )
-        }
-
-        fullReply +=
-          decoder.decode()
-
-        const finalReply =
-          fullReply.trim()
-
-        if (!finalReply) {
-          throw new Error(
-            'Frankie returned an empty response.',
-          )
-        }
+        fullReply += chunk
 
         setMessages(
-          (
-            current,
-          ) =>
+          (current) =>
             current.map(
-              (
-                chatMessage,
-              ) =>
+              (chatMessage) =>
                 chatMessage.id ===
                 frankieMessageId
                   ? {
                       ...chatMessage,
                       text:
-                        finalReply,
+                        fullReply,
                     }
                   : chatMessage,
             ),
-        )
-
-        await loadTasks()
-
-        if (
-          voiceEnabled
-        ) {
-          speakText(
-            finalReply,
-          )
-        }
-      } catch (error) {
-        console.error(
-          'Frankie chat request failed:',
-          error,
-        )
-
-        setMessages(
-          (
-            current,
-          ) =>
-            current.map(
-              (
-                chatMessage,
-              ) =>
-                chatMessage.id ===
-                frankieMessageId
-                  ? {
-                      ...chatMessage,
-                      text:
-                        'I hit a connection problem on my end. Give me a second and try that again.',
-                    }
-                  : chatMessage,
-            ),
-        )
-      } finally {
-        setIsFrankieThinking(
-          false,
         )
       }
+
+      fullReply += decoder.decode()
+
+      const finalReply =
+        fullReply.trim()
+
+      if (!finalReply) {
+        throw new Error(
+          'Frankie returned an empty response.',
+        )
+      }
+
+      setMessages(
+        (current) =>
+          current.map(
+            (chatMessage) =>
+              chatMessage.id ===
+              frankieMessageId
+                ? {
+                    ...chatMessage,
+                    text:
+                      finalReply,
+                  }
+                : chatMessage,
+          ),
+      )
+
+      await loadTasks()
+
+      if (voiceEnabled) {
+        speakText(finalReply)
+      }
+    } catch (error) {
+      console.error(
+        'Frankie chat request failed:',
+        error,
+      )
+
+      setMessages(
+        (current) =>
+          current.map(
+            (chatMessage) =>
+              chatMessage.id ===
+              frankieMessageId
+                ? {
+                    ...chatMessage,
+                    text:
+                      'I hit a connection problem on my end. Give me a second and try that again.',
+                  }
+                : chatMessage,
+          ),
+      )
+    } finally {
+      setIsFrankieThinking(false)
     }
+  }
 
   const handleGoogleConnection =
     async () => {
-      if (
-        isConnectingGoogle
-      ) {
+      if (isConnectingGoogle) {
         return
       }
 
-      setIsConnectingGoogle(
-        true,
-      )
+      setIsConnectingGoogle(true)
 
       try {
         const {
-          data: {
-            session,
-          },
-        } =
-          await supabase.auth.getSession()
+          data: { session },
+        } = await supabase.auth.getSession()
 
         const accessToken =
           session?.access_token
 
-        if (
-          !accessToken
-        ) {
+        if (!accessToken) {
           window.alert(
             'Your Frankie session expired. Please sign in again.',
           )
 
-          navigate(
-            '/signin',
-            {
-              replace:
-                true,
-            },
-          )
+          navigate('/signin', {
+            replace: true,
+          })
 
           return
         }
@@ -1301,11 +1087,8 @@ function HomePage() {
         ) {
           const tabText =
             statusData.sheets &&
-            statusData.sheets.length >
-              0
-              ? `\n\nTabs Frankie can see: ${statusData.sheets.join(
-                  ', ',
-                )}`
+            statusData.sheets.length > 0
+              ? `\n\nTabs Frankie can see: ${statusData.sheets.join(', ')}`
               : ''
 
           window.alert(
@@ -1334,8 +1117,7 @@ function HomePage() {
           await fetch(
             '/api/google/connect',
             {
-              method:
-                'POST',
+              method: 'POST',
 
               headers: {
                 Authorization:
@@ -1373,112 +1155,83 @@ function HomePage() {
           'I had trouble opening the Google connection. Try again.',
         )
       } finally {
-        setIsConnectingGoogle(
-          false,
-        )
+        setIsConnectingGoogle(false)
       }
     }
 
-  const toggleListening =
-    () => {
-      if (
-        isListening
-      ) {
-        recognitionRef.current?.stop()
-        setIsListening(false)
-        return
-      }
-
-      const browserWindow =
-        window as typeof window & {
-          SpeechRecognition?: new () => SpeechRecognitionLike
-
-          webkitSpeechRecognition?: new () => SpeechRecognitionLike
-        }
-
-      const RecognitionConstructor =
-        browserWindow.SpeechRecognition ||
-        browserWindow.webkitSpeechRecognition
-
-      if (
-        !RecognitionConstructor
-      ) {
-        window.alert(
-          'Voice input is not supported in this browser yet. You can still type to Frankie.',
-        )
-        return
-      }
-
-      const recognition =
-        new RecognitionConstructor()
-
-      recognition.continuous =
-        false
-
-      recognition.interimResults =
-        false
-
-      recognition.lang =
-        'en-US'
-
-      recognition.onresult =
-        (event) => {
-          const transcript =
-            event.results[0][0]
-              .transcript
-
-          setMessage(
-            (
-              current,
-            ) =>
-              current
-                ? `${current} ${transcript}`
-                : transcript,
-          )
-        }
-
-      recognition.onend =
-        () =>
-          setIsListening(
-            false,
-          )
-
-      recognition.onerror =
-        () =>
-          setIsListening(
-            false,
-          )
-
-      recognitionRef.current =
-        recognition
-
-      setIsListening(true)
-
-      recognition.start()
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
     }
+
+    const browserWindow =
+      window as typeof window & {
+        SpeechRecognition?: new () => SpeechRecognitionLike
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike
+      }
+
+    const RecognitionConstructor =
+      browserWindow.SpeechRecognition ||
+      browserWindow.webkitSpeechRecognition
+
+    if (!RecognitionConstructor) {
+      window.alert(
+        'Voice input is not supported in this browser yet. You can still type to Frankie.',
+      )
+      return
+    }
+
+    const recognition =
+      new RecognitionConstructor()
+
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onresult =
+      (event) => {
+        const transcript =
+          event.results[0][0].transcript
+
+        setMessage(
+          (current) =>
+            current
+              ? `${current} ${transcript}`
+              : transcript,
+        )
+      }
+
+    recognition.onend = () =>
+      setIsListening(false)
+
+    recognition.onerror = () =>
+      setIsListening(false)
+
+    recognitionRef.current =
+      recognition
+
+    setIsListening(true)
+
+    recognition.start()
+  }
 
   const handleNavigation = (
     item: NavigationItem,
   ) => {
-    setActiveView(
-      item.label,
-    )
-
-    setShowAccountMenu(
-      false,
-    )
+    setActiveView(item.label)
+    setShowAccountMenu(false)
 
     if (
-      item.action ===
-      'connections'
+      item.action === 'connections'
     ) {
       void handleGoogleConnection()
       return
     }
 
     if (
-      item.action ===
-      'settings'
+      item.action === 'settings'
     ) {
       setShowSettings(true)
       return
@@ -1488,23 +1241,19 @@ function HomePage() {
   }
 
   const rightRailTitle =
-    selectedContext.type ===
-    'master'
+    selectedContext.type === 'master'
       ? 'At a glance'
       : 'Business pulse'
 
   const rightRailEyebrow =
-    selectedContext.type ===
-    'master'
+    selectedContext.type === 'master'
       ? 'MASTER VIEW'
       : selectedContext.name.toUpperCase()
 
   return (
     <main
       className="frankie-home"
-      data-workspace-theme={
-        resolvedTheme
-      }
+      data-workspace-theme={resolvedTheme}
     >
       <div className="home-ember home-ember-one" />
       <div className="home-ember home-ember-two" />
@@ -1524,8 +1273,7 @@ function HomePage() {
               Frankie
             </strong>
             <span>
-              Feather &amp;
-              Fire
+              Feather &amp; Fire
             </span>
           </div>
         </div>
@@ -1542,34 +1290,21 @@ function HomePage() {
 
             <select
               className="context-select"
-              value={
-                selectedContextId
-              }
-              onChange={(
-                event,
-              ) =>
+              value={selectedContextId}
+              onChange={(event) =>
                 setSelectedContextId(
-                  event.target
-                    .value,
+                  event.target.value,
                 )
               }
               aria-label="Select business workspace"
             >
               {workspaceContexts.map(
-                (
-                  context,
-                ) => (
+                (context) => (
                   <option
-                    key={
-                      context.id
-                    }
-                    value={
-                      context.id
-                    }
+                    key={context.id}
+                    value={context.id}
                   >
-                    {
-                      context.name
-                    }
+                    {context.name}
                   </option>
                 ),
               )}
@@ -1590,29 +1325,19 @@ function HomePage() {
           aria-label="Frankie workspace"
         >
           {navigationGroups.map(
-            (
-              group,
-            ) => (
+            (group) => (
               <div
                 className="nav-group"
-                key={
-                  group.label
-                }
+                key={group.label}
               >
                 <span className="nav-group-label">
-                  {
-                    group.label
-                  }
+                  {group.label}
                 </span>
 
                 {group.items.map(
-                  (
-                    item,
-                  ) => (
+                  (item) => (
                     <button
-                      key={
-                        item.label
-                      }
+                      key={item.label}
                       type="button"
                       className={
                         activeView ===
@@ -1632,15 +1357,11 @@ function HomePage() {
                       }
                     >
                       <span className="nav-symbol">
-                        {
-                          item.symbol
-                        }
+                        {item.symbol}
                       </span>
 
                       <span className="nav-label">
-                        {
-                          item.label
-                        }
+                        {item.label}
                       </span>
 
                       {typeof item.count ===
@@ -1648,9 +1369,7 @@ function HomePage() {
                         item.count >
                           0 && (
                           <span className="nav-count">
-                            {
-                              item.count
-                            }
+                            {item.count}
                           </span>
                         )}
                     </button>
@@ -1667,32 +1386,21 @@ function HomePage() {
               <button
                 type="button"
                 onClick={() => {
-                  setShowSettings(
-                    true,
-                  )
-
-                  setActiveView(
-                    'Settings',
-                  )
-
-                  setShowAccountMenu(
-                    false,
-                  )
+                  setShowSettings(true)
+                  setActiveView('Settings')
+                  setShowAccountMenu(false)
                 }}
               >
                 <span>
                   ⚙
                 </span>
-                Account &amp;
-                Settings
+                Account &amp; Settings
               </button>
 
               <button
                 type="button"
                 className="account-signout"
-                disabled={
-                  isSigningOut
-                }
+                disabled={isSigningOut}
                 onClick={() =>
                   void handleSignOut()
                 }
@@ -1711,14 +1419,10 @@ function HomePage() {
           <button
             type="button"
             className="account-button"
-            aria-expanded={
-              showAccountMenu
-            }
+            aria-expanded={showAccountMenu}
             onClick={() =>
               setShowAccountMenu(
-                (
-                  current,
-                ) =>
+                (current) =>
                   !current,
               )
             }
@@ -1728,10 +1432,7 @@ function HomePage() {
                 ownerContext.preferredName ||
                 'O'
               )
-                .slice(
-                  0,
-                  1,
-                )
+                .slice(0, 1)
                 .toUpperCase()}
             </span>
 
@@ -1772,9 +1473,7 @@ function HomePage() {
               type="button"
               className="header-command"
               onClick={() =>
-                setMessage(
-                  'Find ',
-                )
+                setMessage('Find ')
               }
               title="Search or ask Frankie across your workspace"
             >
@@ -1804,22 +1503,16 @@ function HomePage() {
               </div>
 
               {messages.map(
-                (
-                  chatMessage,
-                ) => (
+                (chatMessage) => (
                   <div
-                    key={
-                      chatMessage.id
-                    }
+                    key={chatMessage.id}
                     className={`message-row ${chatMessage.role}`}
                   >
                     {chatMessage.role ===
                       'frankie' && (
                       <div className="frankie-avatar">
                         <img
-                          src={
-                            frankieConversation
-                          }
+                          src={frankieConversation}
                           alt="Frankie"
                         />
                       </div>
@@ -1865,18 +1558,12 @@ function HomePage() {
                 ),
               )}
 
-              <div
-                ref={
-                  conversationEndRef
-                }
-              />
+              <div ref={conversationEndRef} />
             </div>
 
             <form
               className="frankie-composer"
-              onSubmit={(
-                event,
-              ) => {
+              onSubmit={(event) => {
                 event.preventDefault()
                 void handleSendMessage()
               }}
@@ -1893,9 +1580,7 @@ function HomePage() {
                     ? 'Stop listening'
                     : 'Talk to Frankie'
                 }
-                onClick={
-                  toggleListening
-                }
+                onClick={toggleListening}
               >
                 {isListening
                   ? '■'
@@ -1903,13 +1588,9 @@ function HomePage() {
               </button>
 
               <textarea
-                value={
-                  message
-                }
+                value={message}
                 rows={1}
-                disabled={
-                  isFrankieThinking
-                }
+                disabled={isFrankieThinking}
                 placeholder={
                   isFrankieThinking
                     ? 'Frankie is responding...'
@@ -1920,17 +1601,12 @@ function HomePage() {
                         ? 'Ask Frankie anything across your businesses...'
                         : `Ask Frankie about ${selectedContext.name}...`
                 }
-                onChange={(
-                  event,
-                ) =>
+                onChange={(event) =>
                   setMessage(
-                    event.target
-                      .value,
+                    event.target.value,
                   )
                 }
-                onKeyDown={(
-                  event,
-                ) => {
+                onKeyDown={(event) => {
                   if (
                     event.key ===
                       'Enter' &&
@@ -1946,19 +1622,14 @@ function HomePage() {
                 type="submit"
                 className="composer-send"
                 aria-label="Send message"
-                disabled={
-                  isFrankieThinking
-                }
+                disabled={isFrankieThinking}
               >
                 ↑
               </button>
             </form>
 
             <div className="composer-hint">
-              Press Enter to
-              send · Shift +
-              Enter for a new
-              line
+              Press Enter to send · Shift + Enter for a new line
             </div>
           </section>
 
@@ -1966,22 +1637,16 @@ function HomePage() {
             <div className="insight-heading">
               <div>
                 <span className="insight-label">
-                  {
-                    rightRailEyebrow
-                  }
+                  {rightRailEyebrow}
                 </span>
 
                 <h2>
-                  {
-                    rightRailTitle
-                  }
+                  {rightRailTitle}
                 </h2>
               </div>
 
               <span className="insight-view-chip">
-                {
-                  activeView
-                }
+                {activeView}
               </span>
             </div>
 
@@ -1990,9 +1655,7 @@ function HomePage() {
                 {dayName}
               </strong>
               <span>
-                {
-                  monthAndDay
-                }
+                {monthAndDay}
               </span>
             </div>
 
@@ -2005,69 +1668,46 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setActiveView(
-                      'Today',
-                    )
+                    setActiveView('Today')
                   }
                 >
                   Today
                 </button>
               </div>
 
-              {todayTasks.length >
-              0 ? (
+              {todayTasks.length > 0 ? (
                 todayTasks
-                  .slice(
-                    0,
-                    3,
-                  )
-                  .map(
-                    (
-                      task,
-                    ) => (
-                      <div
-                        className="priority-row"
-                        key={
-                          task.id
-                        }
-                      >
-                        <span className="priority-number">
-                          ✓
-                        </span>
+                  .slice(0, 3)
+                  .map((task) => (
+                    <div
+                      className="priority-row"
+                      key={task.id}
+                    >
+                      <span className="priority-number">
+                        ✓
+                      </span>
 
-                        <div>
-                          <strong>
-                            {
-                              task.title
-                            }
-                          </strong>
+                      <div>
+                        <strong>
+                          {task.title}
+                        </strong>
 
-                          <p>
-                            {task.due_time
-                              ? `Due today at ${task.due_time.slice(
-                                  0,
-                                  5,
-                                )}`
-                              : 'Due today'}
-                          </p>
-                        </div>
+                        <p>
+                          {task.due_time
+                            ? `Due today at ${task.due_time.slice(0, 5)}`
+                            : 'Due today'}
+                        </p>
                       </div>
-                    ),
-                  )
+                    </div>
+                  ))
               ) : (
                 <div className="insight-empty">
                   <strong>
-                    Nothing due
-                    today
+                    Nothing due today
                   </strong>
 
                   <p>
-                    Frankie will
-                    surface tasks
-                    here when they
-                    have a due
-                    date for
-                    today.
+                    Frankie will surface tasks here when they have a due date for today.
                   </p>
                 </div>
               )}
@@ -2082,38 +1722,27 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setActiveView(
-                      'To-Do',
-                    )
+                    setActiveView('To-Do')
                   }
                 >
                   To-Do
                 </button>
               </div>
 
-              {topPriorityTasks.length >
-              0 ? (
+              {topPriorityTasks.length > 0 ? (
                 topPriorityTasks.map(
-                  (
-                    task,
-                    index,
-                  ) => (
+                  (task, index) => (
                     <div
                       className="priority-row"
-                      key={
-                        task.id
-                      }
+                      key={task.id}
                     >
                       <span className="priority-number">
-                        {index +
-                          1}
+                        {index + 1}
                       </span>
 
                       <div>
                         <strong>
-                          {
-                            task.title
-                          }
+                          {task.title}
                         </strong>
 
                         <p>
@@ -2158,74 +1787,51 @@ function HomePage() {
             <section className="insight-section">
               <div className="insight-section-title">
                 <span>
-                  Needs
-                  attention
+                  Needs attention
                 </span>
 
-                {needsAttentionCount >
-                  0 && (
+                {needsAttentionCount > 0 && (
                   <span className="attention-count">
-                    {
-                      needsAttentionCount
-                    }
+                    {needsAttentionCount}
                   </span>
                 )}
               </div>
 
-              {attentionTasks.length >
-              0 ? (
+              {attentionTasks.length > 0 ? (
                 attentionTasks
-                  .slice(
-                    0,
-                    3,
-                  )
-                  .map(
-                    (
-                      task,
-                    ) => (
-                      <div
-                        className="attention-item"
-                        key={
-                          task.id
-                        }
-                      >
-                        <span className="attention-dot" />
+                  .slice(0, 3)
+                  .map((task) => (
+                    <div
+                      className="attention-item"
+                      key={task.id}
+                    >
+                      <span className="attention-dot" />
 
-                        <div>
-                          <strong>
-                            {
-                              task.title
-                            }
-                          </strong>
+                      <div>
+                        <strong>
+                          {task.title}
+                        </strong>
 
-                          <p>
-                            {task.due_date &&
-                            task.due_date <
-                              todayKey
-                              ? `Overdue since ${task.due_date}`
-                              : 'Urgent task'}
-                          </p>
-                        </div>
+                        <p>
+                          {task.due_date &&
+                          task.due_date < todayKey
+                            ? `Overdue since ${task.due_date}`
+                            : 'Urgent task'}
+                        </p>
                       </div>
-                    ),
-                  )
+                    </div>
+                  ))
               ) : (
                 <div className="attention-item">
                   <span className="attention-dot" />
 
                   <div>
                     <strong>
-                      Nothing
-                      urgent
-                      right now
+                      Nothing urgent right now
                     </strong>
 
                     <p>
-                      Overdue and
-                      urgent tasks
-                      will surface
-                      here
-                      automatically.
+                      Overdue and urgent tasks will surface here automatically.
                     </p>
                   </div>
                 </div>
@@ -2244,9 +1850,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={() =>
-                    setActiveView(
-                      'Reports',
-                    )
+                    setActiveView('Reports')
                   }
                 >
                   Reports
@@ -2284,14 +1888,11 @@ function HomePage() {
                   </span>
 
                   <strong>
-                    {
-                      toDoCount
-                    }
+                    {toDoCount}
                   </strong>
 
                   <small>
-                    Committed
-                    work
+                    Committed work
                   </small>
                 </div>
 
@@ -2301,9 +1902,7 @@ function HomePage() {
                   </span>
 
                   <strong>
-                    {
-                      needsAttentionCount
-                    }
+                    {needsAttentionCount}
                   </strong>
 
                   <small>
@@ -2322,8 +1921,7 @@ function HomePage() {
                 )
               }
             >
-              Ask Frankie what
-              matters now
+              Ask Frankie what matters now
             </button>
           </aside>
         </div>
@@ -2334,9 +1932,7 @@ function HomePage() {
           className="settings-backdrop"
           role="presentation"
           onMouseDown={() =>
-            setShowSettings(
-              false,
-            )
+            setShowSettings(false)
           }
         >
           <section
@@ -2344,9 +1940,7 @@ function HomePage() {
             role="dialog"
             aria-modal="true"
             aria-label="Frankie settings"
-            onMouseDown={(
-              event,
-            ) =>
+            onMouseDown={(event) =>
               event.stopPropagation()
             }
           >
@@ -2357,17 +1951,14 @@ function HomePage() {
                 </span>
 
                 <h2>
-                  Frankie
-                  preferences
+                  Frankie preferences
                 </h2>
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowSettings(
-                    false,
-                  )
+                  setShowSettings(false)
                 }
                 aria-label="Close settings"
               >
@@ -2382,10 +1973,7 @@ function HomePage() {
                 </strong>
 
                 <p>
-                  Choose how
-                  Frankie looks
-                  on this
-                  device.
+                  Choose how Frankie looks on this device.
                 </p>
               </div>
 
@@ -2399,37 +1987,27 @@ function HomePage() {
                     'light',
                     'system',
                   ] as ThemePreference[]
-                ).map(
-                  (
-                    theme,
-                  ) => (
-                    <button
-                      key={
-                        theme
-                      }
-                      type="button"
-                      className={
-                        themePreference ===
-                        theme
-                          ? 'active'
-                          : ''
-                      }
-                      onClick={() =>
-                        changeTheme(
-                          theme,
-                        )
-                      }
-                    >
-                      {theme ===
-                      'dark'
-                        ? 'Dark'
-                        : theme ===
-                            'light'
-                          ? 'Light'
-                          : 'System'}
-                    </button>
-                  ),
-                )}
+                ).map((theme) => (
+                  <button
+                    key={theme}
+                    type="button"
+                    className={
+                      themePreference ===
+                      theme
+                        ? 'active'
+                        : ''
+                    }
+                    onClick={() =>
+                      changeTheme(theme)
+                    }
+                  >
+                    {theme === 'dark'
+                      ? 'Dark'
+                      : theme === 'light'
+                        ? 'Light'
+                        : 'System'}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -2440,9 +2018,7 @@ function HomePage() {
                 </strong>
 
                 <p>
-                  Read Frankie’s
-                  responses aloud
-                  when enabled.
+                  Read Frankie’s responses aloud when enabled.
                 </p>
               </div>
 
@@ -2453,20 +2029,13 @@ function HomePage() {
                     ? 'settings-toggle active'
                     : 'settings-toggle'
                 }
-                aria-pressed={
-                  voiceEnabled
-                }
+                aria-pressed={voiceEnabled}
                 onClick={() => {
                   setVoiceEnabled(
-                    (
-                      current,
-                    ) =>
-                      !current,
+                    (current) => !current,
                   )
 
-                  if (
-                    voiceEnabled
-                  ) {
+                  if (voiceEnabled) {
                     window.speechSynthesis?.cancel()
                   }
                 }}
@@ -2478,20 +2047,11 @@ function HomePage() {
             <div className="settings-block settings-future">
               <div className="settings-block-copy">
                 <strong>
-                  Team &amp;
-                  Access
+                  Team &amp; Access
                 </strong>
 
                 <p>
-                  Invite paid
-                  team seats,
-                  choose which
-                  businesses
-                  they can
-                  access, and
-                  control what
-                  they can view
-                  or change.
+                  Invite paid team seats, choose which businesses they can access, and control what they can view or change.
                 </p>
               </div>
 
@@ -2503,16 +2063,11 @@ function HomePage() {
             <div className="settings-block settings-future">
               <div className="settings-block-copy">
                 <strong>
-                  Activity
-                  History
+                  Activity History
                 </strong>
 
                 <p>
-                  See who
-                  changed what,
-                  when, and
-                  from which
-                  workspace.
+                  See who changed what, when, and from which workspace.
                 </p>
               </div>
 

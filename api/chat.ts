@@ -42,6 +42,7 @@ type ChatRequestBody = {
   messages?: ChatMessage[]
   workspaceContext?: WorkspaceContext
   ownerContext?: OwnerContext
+  currentLocalDate?: string
 }
 
 type OpenAIOutputItem = {
@@ -1050,20 +1051,11 @@ export default {
           memories: [],
         }
 
-      const now =
-        new Date()
-
       const currentDate =
-        new Intl.DateTimeFormat(
-          'en-CA',
-          {
-            timeZone:
-              'America/New_York',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          },
-        ).format(now)
+        typeof body.currentLocalDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(body.currentLocalDate)
+          ? body.currentLocalDate
+          : new Date().toISOString().slice(0, 10)
 
       const contextInstructions = `
 CURRENT OWNER CONTEXT
