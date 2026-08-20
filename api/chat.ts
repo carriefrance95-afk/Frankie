@@ -100,7 +100,7 @@ type TaskToolArgs = {
   sourceName: string | null
   sourceRecordType: string | null
   sourceRecordId: string | null
-  sourceContext: Record<string, unknown> | null
+  sourceContext: Record<string, never> | null
 }
 
 const FRANKIE_INSTRUCTIONS = `
@@ -365,12 +365,14 @@ TASK CREATION RULES
 - A task can exist without a due date.
 - Do not invent a project just because one could exist.
 - assignedTo should remain null unless the owner explicitly identifies an
-  assignee. Team assignment is not fully enabled yet, so do not promise a task
-  has been assigned to another person unless the tool succeeds.
+  assignee.
+- Team assignment is not fully enabled yet, so do not promise a task has been
+  assigned to another person unless the tool succeeds.
 - Use sourceType="conversation" and sourceName="Frankie" for normal tasks created
   directly from conversation.
-- When a task comes from a Business Kit discovery, preserve useful source
-  information such as source record type, SKU, or related context when known.
+- sourceContext should be null for ordinary conversational tasks for now.
+- When a task comes from a Business Kit discovery, use sourceType,
+  sourceName, sourceRecordType, and sourceRecordId to preserve useful context.
 
 TASK READING RULES
 - If the owner asks what is on their To-Do list, what is due, what is overdue,
@@ -383,7 +385,7 @@ TASK READING RULES
 
 TASK UPDATE RULES
 - To update or complete a task, first identify the correct existing task.
-- If the task is ambiguous, list/search the current tasks and ask one concise
+- If the task is ambiguous, list the current tasks and ask one concise
   clarifying question only if necessary.
 - Do not guess which task to modify when multiple tasks reasonably match.
 - When the owner says a task is done, complete the actual task record.
@@ -566,7 +568,8 @@ const TASK_TOOL = {
 
       sourceContext: {
         type: ['object', 'null'],
-        additionalProperties: true,
+        properties: {},
+        additionalProperties: false,
       },
     },
 
@@ -832,7 +835,8 @@ async function runTaskTool(
   }
 
   if (args.taskId !== null) {
-    body.taskId = args.taskId
+    body.taskId =
+      args.taskId
   }
 
   if (
