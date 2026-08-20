@@ -72,6 +72,37 @@ type GarageSaleToolArgs = {
   sku: string
 }
 
+type TaskToolArgs = {
+  action: 'list' | 'create' | 'update' | 'complete'
+  taskId: string | null
+  businessId: string | null
+  title: string | null
+  description: string | null
+  bucket: 'todo' | 'parking_lot' | null
+  status:
+    | 'open'
+    | 'in_progress'
+    | 'waiting'
+    | 'completed'
+    | 'cancelled'
+    | null
+  priority:
+    | 'low'
+    | 'normal'
+    | 'high'
+    | 'urgent'
+    | null
+  dueDate: string | null
+  dueTime: string | null
+  project: string | null
+  assignedTo: string | null
+  sourceType: string | null
+  sourceName: string | null
+  sourceRecordType: string | null
+  sourceRecordId: string | null
+  sourceContext: Record<string, unknown> | null
+}
+
 const FRANKIE_INSTRUCTIONS = `
 ${FRANKIE_CORE_INSTRUCTIONS}
 
@@ -296,13 +327,86 @@ GARAGE SALE TRANSACTIONS / CLOSEOUT — LOCKED RULE
 - Garage Sales may occur more than once; each event should have its own single
   aggregate revenue entry.
 
-TO-DO CAPABILITY — CURRENT LIMIT
-- A business-wide To-Do system has not been implemented yet.
-- Do not say, imply, or offer that you can "add this to To-Do", "create a task",
-  "assign this", or "mark a task complete" until a real To-Do tool/write
-  capability exists.
-- You may identify that something needs action, but report the action directly
-  instead of pretending it was added to a task system.
+TO-DO SYSTEM — ENABLED
+Frankie now has a real universal task system.
+
+The task system is shared infrastructure for:
+- To-Do
+- Today
+- Parking Lot
+- business/workspace tasks
+- future intelligence surfaces
+- future Business Kit automation
+- future team / VA assignment
+
+Frankie may:
+- list tasks
+- create tasks
+- update tasks
+- complete tasks
+
+TASK CREATION RULES
+- When the owner clearly asks Frankie to add, create, remember, track, put on the
+  To-Do list, or otherwise record an actionable task, use the task tool.
+- Do not merely say you will remember it. Actually create the task.
+- Do not ask for confirmation when the request is already clear.
+- If the user gives no priority, use normal.
+- If the user gives no bucket, use todo.
+- If the user is currently inside a specific business workspace, associate the
+  task with that business unless the wording clearly makes it personal,
+  cross-business, or Master View.
+- In Master View, do not guess a business assignment unless the task clearly
+  names or belongs to one business.
+- If no due date is stated, dueDate should be null.
+- If no due time is stated, dueTime should be null.
+- Do not invent dates or times.
+- When relative date language is clear from CURRENT DATE information supplied
+  in context, convert it to YYYY-MM-DD.
+- A task can exist without a due date.
+- Do not invent a project just because one could exist.
+- assignedTo should remain null unless the owner explicitly identifies an
+  assignee. Team assignment is not fully enabled yet, so do not promise a task
+  has been assigned to another person unless the tool succeeds.
+- Use sourceType="conversation" and sourceName="Frankie" for normal tasks created
+  directly from conversation.
+- When a task comes from a Business Kit discovery, preserve useful source
+  information such as source record type, SKU, or related context when known.
+
+TASK READING RULES
+- If the owner asks what is on their To-Do list, what is due, what is overdue,
+  what they need to work on, or what is in the Parking Lot, use the task tool.
+- Do not rely on conversation memory when the task system can provide the real
+  current list.
+- Interpret the results naturally instead of dumping database fields.
+- Completed and cancelled tasks should not be presented as active work unless
+  the owner asks for them.
+
+TASK UPDATE RULES
+- To update or complete a task, first identify the correct existing task.
+- If the task is ambiguous, list/search the current tasks and ask one concise
+  clarifying question only if necessary.
+- Do not guess which task to modify when multiple tasks reasonably match.
+- When the owner says a task is done, complete the actual task record.
+- When the owner asks to move something to Parking Lot, update bucket to
+  parking_lot.
+- When the owner asks to bring something back from Parking Lot, update bucket to
+  todo.
+- When the owner changes priority, due date, due time, title, description, or
+  project, update the existing task instead of creating a duplicate.
+
+TASK CONFIRMATION
+After a successful task write:
+- confirm briefly what happened
+- use natural language
+- do not expose internal task IDs unless useful
+- never claim a task was created, updated, or completed unless the task tool
+  returned ok=true
+
+IMPORTANT TASK ARCHITECTURE
+- There is only ONE task system.
+- Do not describe Today, To-Do, Parking Lot, or the intelligence rail as separate
+  task databases.
+- They are different views of the same underlying task records.
 `
 
 const BUSINESS_KIT_TOOL = {
@@ -346,6 +450,147 @@ const GARAGE_SALE_WRITE_TOOL = {
     },
     required: ['sku'],
   },
+  strict: true,
+} as const
+
+const TASK_TOOL = {
+  type: 'function',
+  name: 'manage_tasks',
+  description:
+    'Manage the owner’s real Frankie task system. Use this to list, create, update, or complete To-Do and Parking Lot tasks.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      action: {
+        type: 'string',
+        enum: [
+          'list',
+          'create',
+          'update',
+          'complete',
+        ],
+      },
+
+      taskId: {
+        type: ['string', 'null'],
+        description:
+          'Existing task ID for update or complete. Null for list/create.',
+      },
+
+      businessId: {
+        type: ['string', 'null'],
+        description:
+          'Business/workspace UUID. Null means Master View.',
+      },
+
+      title: {
+        type: ['string', 'null'],
+        description:
+          'Task title. Required when creating a task.',
+      },
+
+      description: {
+        type: ['string', 'null'],
+      },
+
+      bucket: {
+        type: ['string', 'null'],
+        enum: [
+          'todo',
+          'parking_lot',
+          null,
+        ],
+      },
+
+      status: {
+        type: ['string', 'null'],
+        enum: [
+          'open',
+          'in_progress',
+          'waiting',
+          'completed',
+          'cancelled',
+          null,
+        ],
+      },
+
+      priority: {
+        type: ['string', 'null'],
+        enum: [
+          'low',
+          'normal',
+          'high',
+          'urgent',
+          null,
+        ],
+      },
+
+      dueDate: {
+        type: ['string', 'null'],
+        description:
+          'Due date in YYYY-MM-DD format or null.',
+      },
+
+      dueTime: {
+        type: ['string', 'null'],
+        description:
+          'Due time in HH:MM 24-hour format or null.',
+      },
+
+      project: {
+        type: ['string', 'null'],
+      },
+
+      assignedTo: {
+        type: ['string', 'null'],
+        description:
+          'User UUID for assignment. Usually null until team assignment is enabled.',
+      },
+
+      sourceType: {
+        type: ['string', 'null'],
+      },
+
+      sourceName: {
+        type: ['string', 'null'],
+      },
+
+      sourceRecordType: {
+        type: ['string', 'null'],
+      },
+
+      sourceRecordId: {
+        type: ['string', 'null'],
+      },
+
+      sourceContext: {
+        type: ['object', 'null'],
+        additionalProperties: true,
+      },
+    },
+
+    required: [
+      'action',
+      'taskId',
+      'businessId',
+      'title',
+      'description',
+      'bucket',
+      'status',
+      'priority',
+      'dueDate',
+      'dueTime',
+      'project',
+      'assignedTo',
+      'sourceType',
+      'sourceName',
+      'sourceRecordType',
+      'sourceRecordId',
+      'sourceContext',
+    ],
+  },
+
   strict: true,
 } as const
 
@@ -415,7 +660,9 @@ function getFunctionCalls(
         item.name ===
           'inspect_reseller_os' ||
         item.name ===
-          'mark_inventory_for_garage_sale'
+          'mark_inventory_for_garage_sale' ||
+        item.name ===
+          'manage_tasks'
       ) &&
       typeof item.call_id ===
         'string',
@@ -570,6 +817,131 @@ async function runGarageSaleWriteTool(
   return data
 }
 
+async function runTaskTool(
+  request: Request,
+  sessionToken: string,
+  args: TaskToolArgs,
+): Promise<unknown> {
+  const endpoint = new URL(
+    '/api/tasks',
+    request.url,
+  )
+
+  const body: Record<string, unknown> = {
+    action: args.action,
+  }
+
+  if (args.taskId !== null) {
+    body.taskId = args.taskId
+  }
+
+  if (
+    args.action === 'create' ||
+    args.action === 'update'
+  ) {
+    body.businessId =
+      args.businessId
+
+    if (args.title !== null) {
+      body.title =
+        args.title
+    }
+
+    body.description =
+      args.description
+
+    if (args.bucket !== null) {
+      body.bucket =
+        args.bucket
+    }
+
+    if (args.status !== null) {
+      body.status =
+        args.status
+    }
+
+    if (args.priority !== null) {
+      body.priority =
+        args.priority
+    }
+
+    body.dueDate =
+      args.dueDate
+
+    body.dueTime =
+      args.dueTime
+
+    body.project =
+      args.project
+
+    body.assignedTo =
+      args.assignedTo
+
+    body.sourceType =
+      args.sourceType
+
+    body.sourceName =
+      args.sourceName
+
+    body.sourceRecordType =
+      args.sourceRecordType
+
+    body.sourceRecordId =
+      args.sourceRecordId
+
+    body.sourceContext =
+      args.sourceContext
+  }
+
+  if (
+    args.action === 'list' &&
+    args.businessId !== null
+  ) {
+    body.businessId =
+      args.businessId
+  }
+
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
+      },
+      body:
+        JSON.stringify(body),
+    },
+  )
+
+  const text =
+    await response.text()
+
+  let data: unknown
+
+  try {
+    data = JSON.parse(text)
+  } catch {
+    data = {
+      error:
+        text ||
+        'Task system returned an unreadable response.',
+    }
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      result: data,
+    }
+  }
+
+  return data
+}
+
 export default {
   async fetch(
     request: Request,
@@ -632,10 +1004,12 @@ export default {
       const validMessages =
         messages.filter(
           (message) =>
-            (message.role ===
-              'user' ||
+            (
               message.role ===
-                'assistant') &&
+                'user' ||
+              message.role ===
+                'assistant'
+            ) &&
             typeof message.content ===
               'string' &&
             message.content
@@ -672,6 +1046,21 @@ export default {
           memories: [],
         }
 
+      const now =
+        new Date()
+
+      const currentDate =
+        new Intl.DateTimeFormat(
+          'en-CA',
+          {
+            timeZone:
+              'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          },
+        ).format(now)
+
       const contextInstructions = `
 CURRENT OWNER CONTEXT
 ${JSON.stringify(ownerContext, null, 2)}
@@ -679,10 +1068,21 @@ ${JSON.stringify(ownerContext, null, 2)}
 CURRENT WORKSPACE
 ${JSON.stringify(workspaceContext, null, 2)}
 
+CURRENT DATE
+${currentDate}
+
 Use this context naturally. Do not recite it back unless it is useful.
+
 Master View means the owner may be talking across all businesses. If a
 specific business workspace is selected, prioritize that business while still
 retaining the owner's broader context.
+
+For task creation:
+- If CURRENT WORKSPACE type is "business", businessId should normally be the
+  current workspace id.
+- If CURRENT WORKSPACE type is "master", businessId should normally be null
+  unless the user clearly identifies a specific business.
+- Never pass the literal string "master" as a businessId. Master View uses null.
 
 The owner has already completed Frankie's initial backend setup. Never act as
 though you are meeting them for the first time, and never ask them to repeat
@@ -702,27 +1102,36 @@ information already present above.
         await callOpenAI(
           apiKey,
           {
-            model: 'gpt-5-mini',
+            model:
+              'gpt-5-mini',
+
             reasoning: {
-              effort: 'minimal',
+              effort:
+                'minimal',
             },
+
             instructions: `
 ${FRANKIE_INSTRUCTIONS}
 
 ${contextInstructions}
 `,
+
             input,
+
             tools: [
               BUSINESS_KIT_TOOL,
               GARAGE_SALE_WRITE_TOOL,
+              TASK_TOOL,
             ],
-            tool_choice: 'auto',
+
+            tool_choice:
+              'auto',
           },
         )
 
       for (
         let toolRound = 0;
-        toolRound < 5;
+        toolRound < 7;
         toolRound += 1
       ) {
         const functionCalls =
@@ -743,7 +1152,8 @@ ${contextInstructions}
         }
 
         const toolOutputs: Array<{
-          type: 'function_call_output'
+          type:
+            'function_call_output'
           call_id: string
           output: string
         }> = []
@@ -762,10 +1172,11 @@ ${contextInstructions}
               GarageSaleToolArgs
 
             try {
-              args = JSON.parse(
-                functionCall.arguments ??
-                  '{}',
-              ) as GarageSaleToolArgs
+              args =
+                JSON.parse(
+                  functionCall.arguments ??
+                    '{}',
+                ) as GarageSaleToolArgs
             } catch {
               args = {
                 sku: '',
@@ -778,15 +1189,58 @@ ${contextInstructions}
                 sessionToken,
                 args,
               )
+          } else if (
+            functionCall.name ===
+            'manage_tasks'
+          ) {
+            let args:
+              TaskToolArgs
+
+            try {
+              args =
+                JSON.parse(
+                  functionCall.arguments ??
+                    '{}',
+                ) as TaskToolArgs
+            } catch {
+              args = {
+                action:
+                  'list',
+                taskId: null,
+                businessId: null,
+                title: null,
+                description: null,
+                bucket: null,
+                status: null,
+                priority: null,
+                dueDate: null,
+                dueTime: null,
+                project: null,
+                assignedTo: null,
+                sourceType: null,
+                sourceName: null,
+                sourceRecordType: null,
+                sourceRecordId: null,
+                sourceContext: null,
+              }
+            }
+
+            result =
+              await runTaskTool(
+                request,
+                sessionToken,
+                args,
+              )
           } else {
             let args:
               BusinessKitToolArgs
 
             try {
-              args = JSON.parse(
-                functionCall.arguments ??
-                  '{}',
-              ) as BusinessKitToolArgs
+              args =
+                JSON.parse(
+                  functionCall.arguments ??
+                    '{}',
+                ) as BusinessKitToolArgs
             } catch {
               args = {
                 action:
@@ -806,10 +1260,14 @@ ${contextInstructions}
           toolOutputs.push({
             type:
               'function_call_output',
+
             call_id:
               functionCall.call_id!,
+
             output:
-              JSON.stringify(result),
+              JSON.stringify(
+                result,
+              ),
           })
         }
 
@@ -817,23 +1275,34 @@ ${contextInstructions}
           await callOpenAI(
             apiKey,
             {
-              model: 'gpt-5-mini',
+              model:
+                'gpt-5-mini',
+
               reasoning: {
-                effort: 'minimal',
+                effort:
+                  'minimal',
               },
+
               instructions: `
 ${FRANKIE_INSTRUCTIONS}
 
 ${contextInstructions}
 `,
+
               previous_response_id:
                 responseData.id,
-              input: toolOutputs,
+
+              input:
+                toolOutputs,
+
               tools: [
                 BUSINESS_KIT_TOOL,
                 GARAGE_SALE_WRITE_TOOL,
+                TASK_TOOL,
               ],
-              tool_choice: 'auto',
+
+              tool_choice:
+                'auto',
             },
           )
       }
@@ -856,8 +1325,10 @@ ${contextInstructions}
           headers: {
             'Content-Type':
               'text/plain; charset=utf-8',
+
             'Cache-Control':
               'no-cache, no-transform',
+
             'X-Content-Type-Options':
               'nosniff',
           },
