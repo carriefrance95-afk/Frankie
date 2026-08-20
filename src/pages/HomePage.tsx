@@ -1274,7 +1274,7 @@ function HomePage() {
           {isTodayView ? (
             <section className="today-workspace-panel">
               <div className="today-workspace-scroll">
-                <div className="today-hero">
+                <div className="today-hero compact">
                   <div>
                     <span className="today-eyebrow">YOUR DAY</span>
                     <h2>
@@ -1289,16 +1289,24 @@ function HomePage() {
                     </p>
                   </div>
 
-                  <div className="today-summary-grid">
-                    <div className="today-summary-card">
+                  <div className="today-summary-strip">
+                    <div className={overdueTasks.length > 0 ? 'today-stat active' : 'today-stat'}>
                       <strong>{overdueTasks.length}</strong>
                       <span>Overdue</span>
                     </div>
-                    <div className="today-summary-card">
+
+                    <div className={todayTasks.length > 0 ? 'today-stat active' : 'today-stat'}>
                       <strong>{todayTasks.length}</strong>
                       <span>Due today</span>
                     </div>
-                    <div className="today-summary-card">
+
+                    <div
+                      className={
+                        urgentUndatedTasks.length > 0
+                          ? 'today-stat active'
+                          : 'today-stat'
+                      }
+                    >
                       <strong>{urgentUndatedTasks.length}</strong>
                       <span>Urgent</span>
                     </div>
@@ -1306,18 +1314,16 @@ function HomePage() {
                 </div>
 
                 {overdueTasks.length > 0 && (
-                  <section className="today-section today-section-alert">
-                    <div className="today-section-heading">
+                  <section className="today-focus-block attention">
+                    <div className="today-focus-heading">
                       <div>
                         <span className="today-section-kicker">NEEDS ATTENTION</span>
                         <h3>Overdue</h3>
                       </div>
-                      <span className="today-section-count">
-                        {overdueTasks.length}
-                      </span>
+                      <span className="today-focus-count">{overdueTasks.length}</span>
                     </div>
 
-                    <div className="today-task-list">
+                    <div className="today-task-list compact">
                       {overdueTasks.map((task) => (
                         <article className="today-task-row overdue" key={task.id}>
                           <button
@@ -1341,6 +1347,7 @@ function HomePage() {
                                 {task.priority}
                               </span>
                             </div>
+
                             <div className="today-task-meta">
                               <span>{getBusinessName(task.business_id)}</span>
                               <span>•</span>
@@ -1354,6 +1361,8 @@ function HomePage() {
                                 </>
                               )}
                             </div>
+
+                            {task.description && <p>{task.description}</p>}
                           </button>
                         </article>
                       ))}
@@ -1361,17 +1370,20 @@ function HomePage() {
                   </section>
                 )}
 
-                <section className="today-section">
-                  <div className="today-section-heading">
+                <section className="today-plan-block">
+                  <div className="today-focus-heading">
                     <div>
-                      <span className="today-section-kicker">TODAY</span>
-                      <h3>Due today</h3>
+                      <span className="today-section-kicker">TODAY'S PLAN</span>
+                      <h3>What you're working on today</h3>
                     </div>
-                    <span className="today-section-count">{todayTasks.length}</span>
+
+                    {todayTasks.length > 0 && (
+                      <span className="today-focus-count">{todayTasks.length}</span>
+                    )}
                   </div>
 
                   {todayTasks.length > 0 ? (
-                    <div className="today-task-list">
+                    <div className="today-task-list compact">
                       {todayTasks.map((task) => (
                         <article className="today-task-row" key={task.id}>
                           <button
@@ -1395,14 +1407,17 @@ function HomePage() {
                                 {task.priority}
                               </span>
                             </div>
+
                             <div className="today-task-meta">
                               <span>{getBusinessName(task.business_id)}</span>
+
                               {task.due_time && (
                                 <>
                                   <span>•</span>
                                   <span>Due {task.due_time.slice(0, 5)}</span>
                                 </>
                               )}
+
                               {task.project && (
                                 <>
                                   <span>•</span>
@@ -1410,76 +1425,73 @@ function HomePage() {
                                 </>
                               )}
                             </div>
+
                             {task.description && <p>{task.description}</p>}
                           </button>
                         </article>
                       ))}
                     </div>
                   ) : (
-                    <div className="today-empty">
-                      <span>✓</span>
-                      <div>
-                        <strong>No tasks are due today.</strong>
-                        <p>
-                          Frankie will keep this section current as due dates change.
-                        </p>
+                    <div className="today-status-line">
+                      <span className="today-status-icon">✓</span>
+                      <span>Nothing else is due today.</span>
+                    </div>
+                  )}
+
+                  {urgentUndatedTasks.length > 0 && (
+                    <div className="today-priority-focus">
+                      <div className="today-priority-label">
+                        <span>PRIORITY FOCUS</span>
+                        <small>
+                          Urgent work Frankie is keeping visible even though it is not due today.
+                        </small>
+                      </div>
+
+                      <div className="today-task-list compact">
+                        {urgentUndatedTasks.map((task) => (
+                          <article className="today-task-row urgent" key={task.id}>
+                            <button
+                              type="button"
+                              className="today-task-check"
+                              aria-label={`Complete ${task.title}`}
+                              onClick={() => void completeTask(task)}
+                              disabled={isSavingTask}
+                            >
+                              ✓
+                            </button>
+
+                            <button
+                              type="button"
+                              className="today-task-main"
+                              onClick={() => openTaskEditor(task)}
+                            >
+                              <div className="today-task-title-line">
+                                <strong>{task.title}</strong>
+                                <span className="task-priority-pill urgent">
+                                  urgent
+                                </span>
+                              </div>
+
+                              <div className="today-task-meta">
+                                <span>{getBusinessName(task.business_id)}</span>
+                                <span>•</span>
+                                <span>{formatDueDate(task.due_date, todayKey)}</span>
+                              </div>
+                            </button>
+                          </article>
+                        ))}
                       </div>
                     </div>
                   )}
                 </section>
 
-                {urgentUndatedTasks.length > 0 && (
-                  <section className="today-section">
-                    <div className="today-section-heading">
-                      <div>
-                        <span className="today-section-kicker">PRIORITY FOCUS</span>
-                        <h3>Urgent, even without today’s date</h3>
-                      </div>
-                      <span className="today-section-count">
-                        {urgentUndatedTasks.length}
-                      </span>
-                    </div>
-
-                    <div className="today-task-list">
-                      {urgentUndatedTasks.map((task) => (
-                        <article className="today-task-row urgent" key={task.id}>
-                          <button
-                            type="button"
-                            className="today-task-check"
-                            aria-label={`Complete ${task.title}`}
-                            onClick={() => void completeTask(task)}
-                            disabled={isSavingTask}
-                          >
-                            ✓
-                          </button>
-
-                          <button
-                            type="button"
-                            className="today-task-main"
-                            onClick={() => openTaskEditor(task)}
-                          >
-                            <div className="today-task-title-line">
-                              <strong>{task.title}</strong>
-                              <span className="task-priority-pill urgent">urgent</span>
-                            </div>
-                            <div className="today-task-meta">
-                              <span>{getBusinessName(task.business_id)}</span>
-                              <span>•</span>
-                              <span>{formatDueDate(task.due_date, todayKey)}</span>
-                            </div>
-                          </button>
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                <section className="today-section today-coming-up">
-                  <div className="today-section-heading">
+                <section className="today-coming-up compact">
+                  <div className="today-coming-heading">
                     <div>
-                      <span className="today-section-kicker">AHEAD</span>
-                      <h3>Coming up</h3>
+                      <span className="today-section-kicker">COMING UP</span>
+                      <h3>What's ahead</h3>
                     </div>
+
                     <button
                       type="button"
                       className="today-text-button"
@@ -1502,17 +1514,15 @@ function HomePage() {
                             <strong>{task.title}</strong>
                             <span>{getBusinessName(task.business_id)}</span>
                           </div>
+
                           <span>{formatDueDate(task.due_date, todayKey)}</span>
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <div className="today-empty compact">
-                      <span>◇</span>
-                      <div>
-                        <strong>Nothing scheduled ahead yet.</strong>
-                        <p>Future-dated tasks will appear here automatically.</p>
-                      </div>
+                    <div className="today-status-line muted">
+                      <span className="today-status-icon">◇</span>
+                      <span>Nothing scheduled ahead yet.</span>
                     </div>
                   )}
                 </section>
@@ -1527,6 +1537,7 @@ function HomePage() {
                 }}
               >
                 <img src={frankieConversation} alt="Frankie" />
+
                 <textarea
                   value={message}
                   rows={1}
@@ -1541,6 +1552,7 @@ function HomePage() {
                     }
                   }}
                 />
+
                 <button
                   type="submit"
                   disabled={!message.trim() || isFrankieThinking}
