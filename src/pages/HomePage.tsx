@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 
 import './HomeWorkspace.css'
 import './TaskWorkspace.css'
+import './TodayWorkspace.css'
 
 type ChatMessage = {
   id: number
@@ -256,6 +257,60 @@ function HomePage() {
       return (a.due_time ?? '').localeCompare(b.due_time ?? '')
     })
 
+  const overdueTasks = todoTasks
+    .filter(
+      (task) =>
+        task.due_date !== null &&
+        task.due_date < todayKey,
+    )
+    .sort((a, b) => {
+      const dateDifference =
+        (a.due_date ?? '').localeCompare(b.due_date ?? '')
+      if (dateDifference !== 0) return dateDifference
+      return priorityRank[a.priority] - priorityRank[b.priority]
+    })
+
+  const urgentUndatedTasks = todoTasks
+    .filter(
+      (task) =>
+        task.priority === 'urgent' &&
+        (
+          task.due_date === null ||
+          task.due_date > todayKey
+        ),
+    )
+    .sort((a, b) => {
+      if (a.due_date && b.due_date) {
+        return a.due_date.localeCompare(b.due_date)
+      }
+      if (a.due_date) return -1
+      if (b.due_date) return 1
+      return a.created_at.localeCompare(b.created_at)
+    })
+
+  const upcomingTasks = todoTasks
+    .filter(
+      (task) =>
+        task.due_date !== null &&
+        task.due_date > todayKey &&
+        task.priority !== 'urgent',
+    )
+    .sort((a, b) => {
+      const dateDifference =
+        (a.due_date ?? '').localeCompare(b.due_date ?? '')
+      if (dateDifference !== 0) return dateDifference
+      return priorityRank[a.priority] - priorityRank[b.priority]
+    })
+    .slice(0, 4)
+
+  const todayFocusTaskIds = new Set([
+    ...overdueTasks.map((task) => task.id),
+    ...todayTasks.map((task) => task.id),
+    ...urgentUndatedTasks.map((task) => task.id),
+  ])
+
+  const todayFocusCount = todayFocusTaskIds.size
+
   const attentionTasks = todoTasks
     .filter(
       (task) =>
@@ -290,7 +345,7 @@ function HomePage() {
         {
           label: 'Today',
           symbol: '◷',
-          count: todayTasks.length > 0 ? todayTasks.length : null,
+          count: todayFocusCount > 0 ? todayFocusCount : null,
         },
         { label: 'Email', symbol: '✉' },
         { label: 'Calendar', symbol: '▣' },
@@ -560,7 +615,7 @@ function HomePage() {
   }, [themePreference])
 
   useEffect(() => {
-    if (activeView !== 'Today') return
+    if (activeView !== 'Talk to Frankie') return
     conversationEndRef.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'nearest',
@@ -1027,6 +1082,7 @@ function HomePage() {
   }
 
   const isTaskView = activeView === 'To-Do' || activeView === 'Parking Lot'
+  const isTodayView = activeView === 'Today'
   const taskViewBucket: TaskBucket =
     activeView === 'Parking Lot' ? 'parking_lot' : 'todo'
   const visibleTaskList =
@@ -1040,7 +1096,11 @@ function HomePage() {
       ? 'MASTER VIEW'
       : selectedContext.name.toUpperCase()
 
-  const workspaceTitle = isTaskView ? activeView : 'Talk to Frankie'
+  const workspaceTitle = isTaskView
+    ? activeView
+    : isTodayView
+      ? 'Today'
+      : 'Talk to Frankie'
 
   return (
     <main className="frankie-home" data-workspace-theme={resolvedTheme}>
@@ -1182,6 +1242,15 @@ function HomePage() {
                 <span>＋</span>
                 <span>Add task</span>
               </button>
+            ) : isTodayView ? (
+              <button
+                type="button"
+                className="header-command today-talk-button"
+                onClick={() => setActiveView('Talk to Frankie')}
+              >
+                <span>✦</span>
+                <span>Talk to Frankie</span>
+              </button>
             ) : (
               <button
                 type="button"
@@ -1202,7 +1271,286 @@ function HomePage() {
         </header>
 
         <div className="workspace-body with-insight-rail">
-          {isTaskView ? (
+          {isTodayView ? (
+            <section className="today-workspace-panel">
+              <div className="today-workspace-scroll">
+                <div className="today-hero">
+                  <div>
+                    <span className="today-eyebrow">YOUR DAY</span>
+                    <h2>
+                      {dayName}, {monthAndDay}
+                    </h2>
+                    <p>
+                      {todayFocusCount === 0
+                        ? 'Nothing is demanding your attention right now. Use the space to move something meaningful forward.'
+                        : `${todayFocusCount} ${
+                            todayFocusCount === 1 ? 'thing needs' : 'things need'
+                          } your attention today.`}
+                    </p>
+                  </div>
+
+                  <div className="today-summary-grid">
+                    <div className="today-summary-card">
+                      <strong>{overdueTasks.length}</strong>
+                      <span>Overdue</span>
+                    </div>
+                    <div className="today-summary-card">
+                      <strong>{todayTasks.length}</strong>
+                      <span>Due today</span>
+                    </div>
+                    <div className="today-summary-card">
+                      <strong>{urgentUndatedTasks.length}</strong>
+                      <span>Urgent</span>
+                    </div>
+                  </div>
+                </div>
+
+                {overdueTasks.length > 0 && (
+                  <section className="today-section today-section-alert">
+                    <div className="today-section-heading">
+                      <div>
+                        <span className="today-section-kicker">NEEDS ATTENTION</span>
+                        <h3>Overdue</h3>
+                      </div>
+                      <span className="today-section-count">
+                        {overdueTasks.length}
+                      </span>
+                    </div>
+
+                    <div className="today-task-list">
+                      {overdueTasks.map((task) => (
+                        <article className="today-task-row overdue" key={task.id}>
+                          <button
+                            type="button"
+                            className="today-task-check"
+                            aria-label={`Complete ${task.title}`}
+                            onClick={() => void completeTask(task)}
+                            disabled={isSavingTask}
+                          >
+                            ✓
+                          </button>
+
+                          <button
+                            type="button"
+                            className="today-task-main"
+                            onClick={() => openTaskEditor(task)}
+                          >
+                            <div className="today-task-title-line">
+                              <strong>{task.title}</strong>
+                              <span className={`task-priority-pill ${task.priority}`}>
+                                {task.priority}
+                              </span>
+                            </div>
+                            <div className="today-task-meta">
+                              <span>{getBusinessName(task.business_id)}</span>
+                              <span>•</span>
+                              <span className="today-overdue-copy">
+                                {formatDueDate(task.due_date, todayKey)}
+                              </span>
+                              {task.project && (
+                                <>
+                                  <span>•</span>
+                                  <span>{task.project}</span>
+                                </>
+                              )}
+                            </div>
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section className="today-section">
+                  <div className="today-section-heading">
+                    <div>
+                      <span className="today-section-kicker">TODAY</span>
+                      <h3>Due today</h3>
+                    </div>
+                    <span className="today-section-count">{todayTasks.length}</span>
+                  </div>
+
+                  {todayTasks.length > 0 ? (
+                    <div className="today-task-list">
+                      {todayTasks.map((task) => (
+                        <article className="today-task-row" key={task.id}>
+                          <button
+                            type="button"
+                            className="today-task-check"
+                            aria-label={`Complete ${task.title}`}
+                            onClick={() => void completeTask(task)}
+                            disabled={isSavingTask}
+                          >
+                            ✓
+                          </button>
+
+                          <button
+                            type="button"
+                            className="today-task-main"
+                            onClick={() => openTaskEditor(task)}
+                          >
+                            <div className="today-task-title-line">
+                              <strong>{task.title}</strong>
+                              <span className={`task-priority-pill ${task.priority}`}>
+                                {task.priority}
+                              </span>
+                            </div>
+                            <div className="today-task-meta">
+                              <span>{getBusinessName(task.business_id)}</span>
+                              {task.due_time && (
+                                <>
+                                  <span>•</span>
+                                  <span>Due {task.due_time.slice(0, 5)}</span>
+                                </>
+                              )}
+                              {task.project && (
+                                <>
+                                  <span>•</span>
+                                  <span>{task.project}</span>
+                                </>
+                              )}
+                            </div>
+                            {task.description && <p>{task.description}</p>}
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="today-empty">
+                      <span>✓</span>
+                      <div>
+                        <strong>No tasks are due today.</strong>
+                        <p>
+                          Frankie will keep this section current as due dates change.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                {urgentUndatedTasks.length > 0 && (
+                  <section className="today-section">
+                    <div className="today-section-heading">
+                      <div>
+                        <span className="today-section-kicker">PRIORITY FOCUS</span>
+                        <h3>Urgent, even without today’s date</h3>
+                      </div>
+                      <span className="today-section-count">
+                        {urgentUndatedTasks.length}
+                      </span>
+                    </div>
+
+                    <div className="today-task-list">
+                      {urgentUndatedTasks.map((task) => (
+                        <article className="today-task-row urgent" key={task.id}>
+                          <button
+                            type="button"
+                            className="today-task-check"
+                            aria-label={`Complete ${task.title}`}
+                            onClick={() => void completeTask(task)}
+                            disabled={isSavingTask}
+                          >
+                            ✓
+                          </button>
+
+                          <button
+                            type="button"
+                            className="today-task-main"
+                            onClick={() => openTaskEditor(task)}
+                          >
+                            <div className="today-task-title-line">
+                              <strong>{task.title}</strong>
+                              <span className="task-priority-pill urgent">urgent</span>
+                            </div>
+                            <div className="today-task-meta">
+                              <span>{getBusinessName(task.business_id)}</span>
+                              <span>•</span>
+                              <span>{formatDueDate(task.due_date, todayKey)}</span>
+                            </div>
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section className="today-section today-coming-up">
+                  <div className="today-section-heading">
+                    <div>
+                      <span className="today-section-kicker">AHEAD</span>
+                      <h3>Coming up</h3>
+                    </div>
+                    <button
+                      type="button"
+                      className="today-text-button"
+                      onClick={() => setActiveView('To-Do')}
+                    >
+                      View To-Do
+                    </button>
+                  </div>
+
+                  {upcomingTasks.length > 0 ? (
+                    <div className="today-upcoming-list">
+                      {upcomingTasks.map((task) => (
+                        <button
+                          type="button"
+                          className="today-upcoming-row"
+                          key={task.id}
+                          onClick={() => openTaskEditor(task)}
+                        >
+                          <div>
+                            <strong>{task.title}</strong>
+                            <span>{getBusinessName(task.business_id)}</span>
+                          </div>
+                          <span>{formatDueDate(task.due_date, todayKey)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="today-empty compact">
+                      <span>◇</span>
+                      <div>
+                        <strong>Nothing scheduled ahead yet.</strong>
+                        <p>Future-dated tasks will appear here automatically.</p>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <form
+                className="today-frankie-composer"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  setActiveView('Talk to Frankie')
+                  void handleSendMessage()
+                }}
+              >
+                <img src={frankieConversation} alt="Frankie" />
+                <textarea
+                  value={message}
+                  rows={1}
+                  disabled={isFrankieThinking}
+                  placeholder="Ask Frankie to help plan, prioritize, or change anything in your day..."
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault()
+                      setActiveView('Talk to Frankie')
+                      void handleSendMessage()
+                    }
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!message.trim() || isFrankieThinking}
+                  aria-label="Talk to Frankie"
+                >
+                  ↑
+                </button>
+              </form>
+            </section>
+          ) : isTaskView ? (
             <section className="task-workspace-panel">
               <div className="task-workspace-scroll">
                 <div className="task-workspace-hero">
@@ -1377,7 +1725,7 @@ function HomePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveView('Today')
+                    setActiveView('Talk to Frankie')
                     setMessage(
                       activeView === 'To-Do'
                         ? 'Help me work through my To-Do list.'
@@ -1656,7 +2004,7 @@ function HomePage() {
               type="button"
               className="insight-action"
               onClick={() => {
-                setActiveView('Today')
+                setActiveView('Talk to Frankie')
                 setMessage('What needs my attention right now?')
               }}
             >
