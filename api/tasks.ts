@@ -2,7 +2,12 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-type TaskAction = 'list' | 'create' | 'update' | 'complete'
+type TaskAction =
+  | 'list'
+  | 'create'
+  | 'update'
+  | 'complete'
+
 type TaskStatus =
   | 'open'
   | 'in_progress'
@@ -10,8 +15,15 @@ type TaskStatus =
   | 'completed'
   | 'cancelled'
 
-type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
-type TaskBucket = 'todo' | 'parking_lot'
+type TaskPriority =
+  | 'low'
+  | 'normal'
+  | 'high'
+  | 'urgent'
+
+type TaskBucket =
+  | 'todo'
+  | 'parking_lot'
 
 type TaskRequest = {
   action?: TaskAction
@@ -33,55 +45,90 @@ type TaskRequest = {
   sourceContext?: Record<string, unknown> | null
 }
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name]
+function getRequiredEnv(
+  name: string,
+): string {
+  const value =
+    process.env[name]
 
   if (!value) {
-    throw new Error(`Missing ${name}`)
+    throw new Error(
+      `Missing ${name}`,
+    )
   }
 
   return value
 }
 
-function getBearerToken(request: Request): string | null {
-  const authorization = request.headers.get('authorization')
+function getBearerToken(
+  request: Request,
+): string | null {
+  const authorization =
+    request.headers.get(
+      'authorization',
+    )
 
-  if (!authorization?.startsWith('Bearer ')) {
+  if (
+    !authorization?.startsWith(
+      'Bearer ',
+    )
+  ) {
     return null
   }
 
-  return authorization.slice('Bearer '.length).trim() || null
+  return (
+    authorization
+      .slice(
+        'Bearer '.length,
+      )
+      .trim() || null
+  )
 }
 
 function cleanText(
   value: unknown,
   maxLength = 500,
 ): string | null {
-  if (typeof value !== 'string') {
+  if (
+    typeof value !==
+    'string'
+  ) {
     return null
   }
 
-  const cleaned = value.trim()
+  const cleaned =
+    value.trim()
 
   if (!cleaned) {
     return null
   }
 
-  return cleaned.slice(0, maxLength)
+  return cleaned.slice(
+    0,
+    maxLength,
+  )
 }
 
 function isIsoDate(
-  value: string | null | undefined,
+  value:
+    | string
+    | null
+    | undefined,
 ): boolean {
   if (!value) {
     return true
   }
 
-  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+  return /^\d{4}-\d{2}-\d{2}$/.test(
+    value,
+  )
 }
 
 function isTime(
-  value: string | null | undefined,
+  value:
+    | string
+    | null
+    | undefined,
 ): boolean {
   if (!value) {
     return true
@@ -92,38 +139,20 @@ function isTime(
   )
 }
 
-async function verifyBusinessOwnership(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  ownerId: string,
-  businessId: string | null | undefined,
-): Promise<boolean> {
-  if (!businessId) {
-    return true
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('businesses')
-    .select('id')
-    .eq('id', businessId)
-    .eq('owner_id', ownerId)
-    .maybeSingle()
-
-  if (error) {
-    throw error
-  }
-
-  return Boolean(data)
-}
-
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(
+    request: Request,
+  ): Promise<Response> {
     if (
-      request.method !== 'GET' &&
-      request.method !== 'POST'
+      request.method !==
+        'GET' &&
+      request.method !==
+        'POST'
     ) {
       return Response.json(
         {
-          error: 'Method not allowed',
+          error:
+            'Method not allowed',
         },
         {
           status: 405,
@@ -132,20 +161,26 @@ export default {
     }
 
     try {
-      const supabaseUrl = getRequiredEnv(
-        'VITE_SUPABASE_URL',
-      )
+      const supabaseUrl =
+        getRequiredEnv(
+          'VITE_SUPABASE_URL',
+        )
 
-      const serviceRoleKey = getRequiredEnv(
-        'SUPABASE_SERVICE_ROLE_KEY',
-      )
+      const publishableKey =
+        getRequiredEnv(
+          'VITE_SUPABASE_PUBLISHABLE_KEY',
+        )
 
-      const sessionToken = getBearerToken(request)
+      const sessionToken =
+        getBearerToken(
+          request,
+        )
 
       if (!sessionToken) {
         return Response.json(
           {
-            error: 'Not authenticated',
+            error:
+              'Not authenticated',
           },
           {
             status: 401,
@@ -153,28 +188,63 @@ export default {
         )
       }
 
-      const supabaseAdmin = createClient(
-        supabaseUrl,
-        serviceRoleKey,
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+      // ======================================================
+      // USER-SCOPED SUPABASE CLIENT
+      //
+      // This uses the SAME publishable-key auth model as the
+      // Frankie frontend and forwards the logged-in user's
+      // bearer token to Supabase.
+      //
+      // RLS on public.tasks remains active and protects rows.
+      // ======================================================
+
+      const supabase =
+        createClient(
+          supabaseUrl,
+          publishableKey,
+          {
+            global: {
+              headers: {
+                Authorization:
+                  `Bearer ${sessionToken}`,
+              },
+            },
+
+            auth: {
+              persistSession:
+                false,
+
+              autoRefreshToken:
+                false,
+
+              detectSessionInUrl:
+                false,
+            },
           },
-        },
-      )
+        )
 
       const {
-        data: { user },
-        error: userError,
-      } = await supabaseAdmin.auth.getUser(
-        sessionToken,
-      )
+        data: {
+          user,
+        },
+        error:
+          userError,
+      } =
+        await supabase.auth.getUser()
 
-      if (userError || !user) {
+      if (
+        userError ||
+        !user
+      ) {
+        console.error(
+          'Frankie task auth error:',
+          userError,
+        )
+
         return Response.json(
           {
-            error: 'Invalid session',
+            error:
+              'Invalid session',
           },
           {
             status: 401,
@@ -182,90 +252,135 @@ export default {
         )
       }
 
-      let body: TaskRequest = {}
+      let body:
+        TaskRequest =
+        {}
 
-      if (request.method === 'POST') {
+      if (
+        request.method ===
+        'POST'
+      ) {
         body =
           (await request.json()) as TaskRequest
       }
 
-      const action: TaskAction =
-        request.method === 'GET'
+      const action:
+        TaskAction =
+        request.method ===
+        'GET'
           ? 'list'
-          : body.action ?? 'list'
+          : body.action ??
+            'list'
 
       // ======================================================
-      // LIST TASKS
+      // LIST
       // ======================================================
 
-      if (action === 'list') {
-        let query = supabaseAdmin
-          .from('tasks')
-          .select(`
-            id,
-            owner_id,
-            business_id,
-            title,
-            description,
-            bucket,
-            status,
-            priority,
-            due_date,
-            due_time,
-            project,
-            assigned_to,
-            source_type,
-            source_name,
-            source_record_type,
-            source_record_id,
-            source_context,
-            created_by,
-            created_by_type,
-            completed_at,
-            sort_order,
-            created_at,
-            updated_at
-          `)
-          .eq('owner_id', user.id)
-          .order('sort_order', {
-            ascending: true,
-          })
-          .order('due_date', {
-            ascending: true,
-            nullsFirst: false,
-          })
-          .order('created_at', {
-            ascending: false,
-          })
+      if (
+        action ===
+        'list'
+      ) {
+        let query =
+          supabase
+            .from(
+              'tasks',
+            )
+            .select(`
+              id,
+              owner_id,
+              business_id,
+              title,
+              description,
+              bucket,
+              status,
+              priority,
+              due_date,
+              due_time,
+              project,
+              assigned_to,
+              source_type,
+              source_name,
+              source_record_type,
+              source_record_id,
+              source_context,
+              created_by,
+              created_by_type,
+              completed_at,
+              sort_order,
+              created_at,
+              updated_at
+            `)
+            .eq(
+              'owner_id',
+              user.id,
+            )
+            .order(
+              'sort_order',
+              {
+                ascending:
+                  true,
+              },
+            )
+            .order(
+              'due_date',
+              {
+                ascending:
+                  true,
 
-        if (body.businessId) {
-          query = query.eq(
-            'business_id',
-            body.businessId,
-          )
+                nullsFirst:
+                  false,
+              },
+            )
+            .order(
+              'created_at',
+              {
+                ascending:
+                  false,
+              },
+            )
+
+        if (
+          body.businessId
+        ) {
+          query =
+            query.eq(
+              'business_id',
+              body.businessId,
+            )
         }
 
-        const { data, error } = await query
+        const {
+          data,
+          error,
+        } =
+          await query
 
         if (error) {
           throw error
         }
 
-        return Response.json({
-          ok: true,
-          tasks: data ?? [],
-        })
+        return Response.json(
+          {
+            ok: true,
+            tasks:
+              data ?? [],
+          },
+        )
       }
 
       // ======================================================
-      // CREATE TASK
+      // CREATE
       // ======================================================
 
-      if (action === 'create') {
-        const title = cleanText(
-          body.title,
-          300,
-        )
+      if (
+        action ===
+        'create'
+      ) {
+        const title =
+          cleanText(
+            body.title,
+            300,
+          )
 
         if (!title) {
           return Response.json(
@@ -274,14 +389,19 @@ export default {
                 'Task title is required.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
         if (
-          !isIsoDate(body.dueDate) ||
-          !isTime(body.dueTime)
+          !isIsoDate(
+            body.dueDate,
+          ) ||
+          !isTime(
+            body.dueTime,
+          )
         ) {
           return Response.json(
             {
@@ -289,34 +409,63 @@ export default {
                 'Invalid due date or due time.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
-        const ownsBusiness =
-          await verifyBusinessOwnership(
-            supabaseAdmin,
-            user.id,
-            body.businessId,
-          )
+        // Verify business belongs to this user.
+        if (
+          body.businessId
+        ) {
+          const {
+            data:
+              business,
+            error:
+              businessError,
+          } =
+            await supabase
+              .from(
+                'businesses',
+              )
+              .select(
+                'id',
+              )
+              .eq(
+                'id',
+                body.businessId,
+              )
+              .eq(
+                'owner_id',
+                user.id,
+              )
+              .maybeSingle()
 
-        if (!ownsBusiness) {
-          return Response.json(
-            {
-              error:
-                'Business workspace not found.',
-            },
-            {
-              status: 403,
-            },
-          )
+          if (
+            businessError
+          ) {
+            throw businessError
+          }
+
+          if (!business) {
+            return Response.json(
+              {
+                error:
+                  'Business workspace not found.',
+              },
+              {
+                status:
+                  403,
+              },
+            )
+          }
         }
 
-        // Team / VA assignment comes later.
         if (
           body.assignedTo &&
-          body.assignedTo !== user.id
+          body.assignedTo !==
+            user.id
         ) {
           return Response.json(
             {
@@ -324,104 +473,132 @@ export default {
                 'Team assignment is not enabled yet.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
-        const insertRow = {
-          owner_id: user.id,
-          business_id:
-            body.businessId ?? null,
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'tasks',
+            )
+            .insert({
+              owner_id:
+                user.id,
 
-          title,
+              business_id:
+                body.businessId ??
+                null,
 
-          description: cleanText(
-            body.description,
-            5000,
-          ),
+              title,
 
-          bucket:
-            body.bucket ?? 'todo',
+              description:
+                cleanText(
+                  body.description,
+                  5000,
+                ),
 
-          status:
-            body.status ?? 'open',
+              bucket:
+                body.bucket ??
+                'todo',
 
-          priority:
-            body.priority ?? 'normal',
+              status:
+                body.status ??
+                'open',
 
-          due_date:
-            body.dueDate ?? null,
+              priority:
+                body.priority ??
+                'normal',
 
-          due_time:
-            body.dueTime ?? null,
+              due_date:
+                body.dueDate ??
+                null,
 
-          project: cleanText(
-            body.project,
-            300,
-          ),
+              due_time:
+                body.dueTime ??
+                null,
 
-          assigned_to:
-            body.assignedTo ?? user.id,
+              project:
+                cleanText(
+                  body.project,
+                  300,
+                ),
 
-          source_type: cleanText(
-            body.sourceType,
-            100,
-          ),
+              assigned_to:
+                body.assignedTo ??
+                user.id,
 
-          source_name: cleanText(
-            body.sourceName,
-            200,
-          ),
+              source_type:
+                cleanText(
+                  body.sourceType,
+                  100,
+                ),
 
-          source_record_type: cleanText(
-            body.sourceRecordType,
-            100,
-          ),
+              source_name:
+                cleanText(
+                  body.sourceName,
+                  200,
+                ),
 
-          source_record_id: cleanText(
-            body.sourceRecordId,
-            300,
-          ),
+              source_record_type:
+                cleanText(
+                  body.sourceRecordType,
+                  100,
+                ),
 
-          source_context:
-            body.sourceContext ?? {},
+              source_record_id:
+                cleanText(
+                  body.sourceRecordId,
+                  300,
+                ),
 
-          created_by: user.id,
+              source_context:
+                body.sourceContext ??
+                {},
 
-          created_by_type: 'frankie',
-        }
+              created_by:
+                user.id,
 
-        const { data, error } =
-          await supabaseAdmin
-            .from('tasks')
-            .insert(insertRow)
-            .select('*')
+              created_by_type:
+                'frankie',
+            })
+            .select(
+              '*',
+            )
             .single()
 
         if (error) {
           throw error
         }
 
-        return Response.json({
-          ok: true,
-          task: data,
-        })
+        return Response.json(
+          {
+            ok: true,
+            task: data,
+          },
+        )
       }
 
       // ======================================================
-      // UPDATE / COMPLETE REQUIRE TASK ID
+      // UPDATE / COMPLETE NEED EXISTING TASK
       // ======================================================
 
-      const taskId = cleanText(
-        body.taskId,
-        100,
-      )
+      const taskId =
+        cleanText(
+          body.taskId,
+          100,
+        )
 
       if (!taskId) {
         return Response.json(
           {
-            error: 'Task id is required.',
+            error:
+              'Task id is required.',
           },
           {
             status: 400,
@@ -430,23 +607,42 @@ export default {
       }
 
       const {
-        data: existingTask,
-        error: existingTaskError,
-      } = await supabaseAdmin
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .eq('owner_id', user.id)
-        .maybeSingle()
+        data:
+          existingTask,
 
-      if (existingTaskError) {
+        error:
+          existingTaskError,
+      } =
+        await supabase
+          .from(
+            'tasks',
+          )
+          .select(
+            '*',
+          )
+          .eq(
+            'id',
+            taskId,
+          )
+          .eq(
+            'owner_id',
+            user.id,
+          )
+          .maybeSingle()
+
+      if (
+        existingTaskError
+      ) {
         throw existingTaskError
       }
 
-      if (!existingTask) {
+      if (
+        !existingTask
+      ) {
         return Response.json(
           {
-            error: 'Task not found.',
+            error:
+              'Task not found.',
           },
           {
             status: 404,
@@ -455,39 +651,65 @@ export default {
       }
 
       // ======================================================
-      // COMPLETE TASK
+      // COMPLETE
       // ======================================================
 
-      if (action === 'complete') {
-        const { data, error } =
-          await supabaseAdmin
-            .from('tasks')
+      if (
+        action ===
+        'complete'
+      ) {
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'tasks',
+            )
             .update({
-              status: 'completed',
+              status:
+                'completed',
             })
-            .eq('id', taskId)
-            .eq('owner_id', user.id)
-            .select('*')
+            .eq(
+              'id',
+              taskId,
+            )
+            .eq(
+              'owner_id',
+              user.id,
+            )
+            .select(
+              '*',
+            )
             .single()
 
         if (error) {
           throw error
         }
 
-        return Response.json({
-          ok: true,
-          task: data,
-        })
+        return Response.json(
+          {
+            ok: true,
+            task: data,
+          },
+        )
       }
 
       // ======================================================
-      // UPDATE TASK
+      // UPDATE
       // ======================================================
 
-      if (action === 'update') {
+      if (
+        action ===
+        'update'
+      ) {
         if (
-          !isIsoDate(body.dueDate) ||
-          !isTime(body.dueTime)
+          !isIsoDate(
+            body.dueDate,
+          ) ||
+          !isTime(
+            body.dueTime,
+          )
         ) {
           return Response.json(
             {
@@ -495,29 +717,54 @@ export default {
                 'Invalid due date or due time.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
         if (
-          body.businessId !== undefined
+          body.businessId
         ) {
-          const ownsBusiness =
-            await verifyBusinessOwnership(
-              supabaseAdmin,
-              user.id,
-              body.businessId,
-            )
+          const {
+            data:
+              business,
 
-          if (!ownsBusiness) {
+            error:
+              businessError,
+          } =
+            await supabase
+              .from(
+                'businesses',
+              )
+              .select(
+                'id',
+              )
+              .eq(
+                'id',
+                body.businessId,
+              )
+              .eq(
+                'owner_id',
+                user.id,
+              )
+              .maybeSingle()
+
+          if (
+            businessError
+          ) {
+            throw businessError
+          }
+
+          if (!business) {
             return Response.json(
               {
                 error:
                   'Business workspace not found.',
               },
               {
-                status: 403,
+                status:
+                  403,
               },
             )
           }
@@ -525,7 +772,8 @@ export default {
 
         if (
           body.assignedTo &&
-          body.assignedTo !== user.id
+          body.assignedTo !==
+            user.id
         ) {
           return Response.json(
             {
@@ -533,28 +781,36 @@ export default {
                 'Team assignment is not enabled yet.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
-        const updateRow: Record<
-          string,
-          unknown
-        > = {}
+        const updateRow:
+          Record<
+            string,
+            unknown
+          > =
+          {}
 
         if (
-          body.businessId !== undefined
+          body.businessId !==
+          undefined
         ) {
           updateRow.business_id =
             body.businessId
         }
 
-        if (body.title !== undefined) {
-          const title = cleanText(
-            body.title,
-            300,
-          )
+        if (
+          body.title !==
+          undefined
+        ) {
+          const title =
+            cleanText(
+              body.title,
+              300,
+            )
 
           if (!title) {
             return Response.json(
@@ -563,16 +819,19 @@ export default {
                   'Task title cannot be blank.',
               },
               {
-                status: 400,
+                status:
+                  400,
               },
             )
           }
 
-          updateRow.title = title
+          updateRow.title =
+            title
         }
 
         if (
-          body.description !== undefined
+          body.description !==
+          undefined
         ) {
           updateRow.description =
             cleanText(
@@ -581,39 +840,49 @@ export default {
             )
         }
 
-        if (body.bucket !== undefined) {
+        if (
+          body.bucket !==
+          undefined
+        ) {
           updateRow.bucket =
             body.bucket
         }
 
-        if (body.status !== undefined) {
+        if (
+          body.status !==
+          undefined
+        ) {
           updateRow.status =
             body.status
         }
 
         if (
-          body.priority !== undefined
+          body.priority !==
+          undefined
         ) {
           updateRow.priority =
             body.priority
         }
 
         if (
-          body.dueDate !== undefined
+          body.dueDate !==
+          undefined
         ) {
           updateRow.due_date =
             body.dueDate
         }
 
         if (
-          body.dueTime !== undefined
+          body.dueTime !==
+          undefined
         ) {
           updateRow.due_time =
             body.dueTime
         }
 
         if (
-          body.project !== undefined
+          body.project !==
+          undefined
         ) {
           updateRow.project =
             cleanText(
@@ -623,14 +892,16 @@ export default {
         }
 
         if (
-          body.assignedTo !== undefined
+          body.assignedTo !==
+          undefined
         ) {
           updateRow.assigned_to =
             body.assignedTo
         }
 
         if (
-          body.sourceType !== undefined
+          body.sourceType !==
+          undefined
         ) {
           updateRow.source_type =
             cleanText(
@@ -640,7 +911,8 @@ export default {
         }
 
         if (
-          body.sourceName !== undefined
+          body.sourceName !==
+          undefined
         ) {
           updateRow.source_name =
             cleanText(
@@ -676,12 +948,14 @@ export default {
           undefined
         ) {
           updateRow.source_context =
-            body.sourceContext ?? {}
+            body.sourceContext ??
+            {}
         }
 
         if (
-          Object.keys(updateRow).length ===
-          0
+          Object.keys(
+            updateRow,
+          ).length === 0
         ) {
           return Response.json(
             {
@@ -689,28 +963,46 @@ export default {
                 'No task changes were provided.',
             },
             {
-              status: 400,
+              status:
+                400,
             },
           )
         }
 
-        const { data, error } =
-          await supabaseAdmin
-            .from('tasks')
-            .update(updateRow)
-            .eq('id', taskId)
-            .eq('owner_id', user.id)
-            .select('*')
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              'tasks',
+            )
+            .update(
+              updateRow,
+            )
+            .eq(
+              'id',
+              taskId,
+            )
+            .eq(
+              'owner_id',
+              user.id,
+            )
+            .select(
+              '*',
+            )
             .single()
 
         if (error) {
           throw error
         }
 
-        return Response.json({
-          ok: true,
-          task: data,
-        })
+        return Response.json(
+          {
+            ok: true,
+            task: data,
+          },
+        )
       }
 
       return Response.json(
