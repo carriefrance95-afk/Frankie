@@ -224,18 +224,6 @@ function HomePage() {
       )
     })
 
-  const overdueTasks = todoTasks
-    .filter(
-      (task) =>
-        task.due_date !== null &&
-        task.due_date < todayKey,
-    )
-    .sort((a, b) =>
-      (a.due_date ?? '').localeCompare(
-        b.due_date ?? '',
-      ),
-    )
-
   const attentionTasks = todoTasks
     .filter(
       (task) =>
