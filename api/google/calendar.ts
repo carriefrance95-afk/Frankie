@@ -2,18 +2,42 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+const REQUIRED_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+]
+
 type GoogleConnection = {
   access_token: string
   refresh_token: string
   expires_at: string | null
+  scope: string | null
 }
 
 type GoogleTokenResponse = {
   access_token?: string
   expires_in?: number
   token_type?: string
+  scope?: string
   error?: string
   error_description?: string
+}
+
+type GoogleApiError = {
+  code?: number
+  message?: string
+  status?: string
+  errors?: Array<{
+    message?: string
+    domain?: string
+    reason?: string
+  }>
+  details?: Array<{
+    '@type'?: string
+    reason?: string
+    domain?: string
+    metadata?: Record<string, string>
+  }>
 }
 
 type GoogleCalendarListResponse = {
@@ -24,9 +48,7 @@ type GoogleCalendarListResponse = {
     accessRole?: string
     backgroundColor?: string
   }>
-  error?: {
-    message?: string
-  }
+  error?: GoogleApiError
 }
 
 type GoogleCalendarEventsResponse = {
@@ -48,14 +70,10 @@ type GoogleCalendarEventsResponse = {
       timeZone?: string
     }
   }>
-  error?: {
-    message?: string
-  }
+  error?: GoogleApiError
 }
 
-function getRequiredEnv(
-  name: string,
-): string {
+function getRequiredEnv(name: string): string {
   const value = process.env[name]
 
   if (!value) {
@@ -82,6 +100,71 @@ function getBearerToken(
   )
 }
 
+function parseGrantedScopes(
+  scopeValue: string | null,
+): Set<string> {
+  return new Set(
+    (scopeValue ?? '')
+      .split(/\s+/)
+      .map((scope) => scope.trim())
+      .filter(Boolean),
+  )
+}
+
+function hasRequiredCalendarScopes(
+  scopeValue: string | null,
+): boolean {
+  const grantedScopes =
+    parseGrantedScopes(scopeValue)
+
+  return REQUIRED_CALENDAR_SCOPES.every(
+    (scope) => grantedScopes.has(scope),
+  )
+}
+
+function getGoogleErrorReason(
+  error: GoogleApiError | undefined,
+): string | null {
+  const directReason =
+    error?.errors?.find(
+      (item) => item.reason,
+    )?.reason
+
+  if (directReason) {
+    return directReason
+  }
+
+  const detailReason =
+    error?.details?.find(
+      (item) => item.reason,
+    )?.reason
+
+  return detailReason ?? null
+}
+
+function isCalendarApiDisabled(
+  error: GoogleApiError | undefined,
+): boolean {
+  const reason =
+    getGoogleErrorReason(error)
+
+  const message =
+    error?.message?.toLowerCase() ?? ''
+
+  const status =
+    error?.status?.toLowerCase() ?? ''
+
+  return (
+    reason === 'accessNotConfigured' ||
+    reason === 'SERVICE_DISABLED' ||
+    status === 'failed_precondition' ||
+    message.includes('calendar api has not been used') ||
+    message.includes('calendar api has not been enabled') ||
+    message.includes('api has not been used') ||
+    message.includes('api is disabled')
+  )
+}
+
 async function refreshGoogleAccessToken(
   refreshToken: string,
   clientId: string,
@@ -89,6 +172,7 @@ async function refreshGoogleAccessToken(
 ): Promise<{
   accessToken: string
   expiresAt: string
+  scope: string | null
 }> {
   const response = await fetch(
     'https://oauth2.googleapis.com/token',
@@ -132,6 +216,7 @@ async function refreshGoogleAccessToken(
   return {
     accessToken: data.access_token,
     expiresAt,
+    scope: data.scope ?? null,
   }
 }
 
@@ -226,7 +311,7 @@ export default {
         await supabaseAdmin
           .from('google_connections')
           .select(
-            'access_token, refresh_token, expires_at',
+            'access_token, refresh_token, expires_at, scope',
           )
           .eq(
             'owner_id',
@@ -242,13 +327,16 @@ export default {
         connectionError ||
         !connection
       ) {
-        return Response.json(
-          {
-            connected: false,
-            calendars: [],
-            events: [],
-          },
-        )
+        return Response.json({
+          connected: false,
+          needsCalendarPermission: false,
+          calendarApiEnabled: null,
+          grantedScopes: [],
+          requiredCalendarScopes:
+            REQUIRED_CALENDAR_SCOPES,
+          calendars: [],
+          events: [],
+        })
       }
 
       const googleConnection =
@@ -256,6 +344,9 @@ export default {
 
       let googleAccessToken =
         googleConnection.access_token
+
+      let savedScope =
+        googleConnection.scope
 
       const expiresAt =
         googleConnection.expires_at
@@ -280,17 +371,34 @@ export default {
         googleAccessToken =
           refreshed.accessToken
 
+        if (refreshed.scope) {
+          savedScope =
+            refreshed.scope
+        }
+
+        const updatePayload: {
+          access_token: string
+          expires_at: string
+          updated_at: string
+          scope?: string
+        } = {
+          access_token:
+            refreshed.accessToken,
+          expires_at:
+            refreshed.expiresAt,
+          updated_at:
+            new Date().toISOString(),
+        }
+
+        if (refreshed.scope) {
+          updatePayload.scope =
+            refreshed.scope
+        }
+
         const { error: refreshSaveError } =
           await supabaseAdmin
             .from('google_connections')
-            .update({
-              access_token:
-                refreshed.accessToken,
-              expires_at:
-                refreshed.expiresAt,
-              updated_at:
-                new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq(
               'owner_id',
               user.id,
@@ -306,6 +414,30 @@ export default {
             refreshSaveError,
           )
         }
+      }
+
+      const grantedScopes = Array.from(
+        parseGrantedScopes(savedScope),
+      )
+
+      const calendarPermissionGranted =
+        hasRequiredCalendarScopes(
+          savedScope,
+        )
+
+      if (!calendarPermissionGranted) {
+        return Response.json({
+          connected: true,
+          needsCalendarPermission: true,
+          calendarApiEnabled: null,
+          grantedScopes,
+          requiredCalendarScopes:
+            REQUIRED_CALENDAR_SCOPES,
+          calendars: [],
+          events: [],
+          error:
+            'Google is connected, but the saved authorization does not include the required Calendar permissions.',
+        })
       }
 
       const googleHeaders = {
@@ -326,25 +458,59 @@ export default {
           GoogleCalendarListResponse
 
       if (!calendarListResponse.ok) {
+        const apiDisabled =
+          isCalendarApiDisabled(
+            calendarListData.error,
+          )
+
         console.error(
           'Google Calendar list error:',
-          calendarListData,
+          {
+            status:
+              calendarListResponse.status,
+            apiDisabled,
+            reason:
+              getGoogleErrorReason(
+                calendarListData.error,
+              ),
+            error:
+              calendarListData.error,
+          },
         )
 
-        return Response.json(
-          {
-            connected: true,
-            needsCalendarPermission: true,
-            calendars: [],
-            events: [],
-            error:
+        return Response.json({
+          connected: true,
+          needsCalendarPermission: false,
+          calendarApiEnabled:
+            apiDisabled ? false : null,
+          grantedScopes,
+          requiredCalendarScopes:
+            REQUIRED_CALENDAR_SCOPES,
+          calendars: [],
+          events: [],
+          googleError: {
+            status:
+              calendarListResponse.status,
+            code:
+              calendarListData.error?.code ??
+              null,
+            statusText:
+              calendarListData.error?.status ??
+              null,
+            reason:
+              getGoogleErrorReason(
+                calendarListData.error,
+              ),
+            message:
               calendarListData.error?.message ??
-              'Frankie cannot access Google Calendar yet.',
+              'Google Calendar returned an error.',
           },
-          {
-            status: 403,
-          },
-        )
+          error:
+            apiDisabled
+              ? 'Google Calendar permission is granted, but the Google Calendar API is not enabled for this Google Cloud project.'
+              : calendarListData.error?.message ??
+                'Frankie could not access Google Calendar.',
+        })
       }
 
       const calendars =
@@ -408,6 +574,11 @@ export default {
         return Response.json({
           connected: true,
           needsCalendarPermission: false,
+          calendarApiEnabled: true,
+          grantedScopes,
+          requiredCalendarScopes:
+            REQUIRED_CALENDAR_SCOPES,
+          primaryCalendar: null,
           calendars,
           events: [],
         })
@@ -460,23 +631,49 @@ export default {
       if (!eventsResponse.ok) {
         console.error(
           'Google Calendar events error:',
-          eventsData,
+          {
+            status:
+              eventsResponse.status,
+            reason:
+              getGoogleErrorReason(
+                eventsData.error,
+              ),
+            error:
+              eventsData.error,
+          },
         )
 
-        return Response.json(
-          {
-            connected: true,
-            needsCalendarPermission: false,
-            calendars,
-            events: [],
-            error:
+        return Response.json({
+          connected: true,
+          needsCalendarPermission: false,
+          calendarApiEnabled: true,
+          grantedScopes,
+          requiredCalendarScopes:
+            REQUIRED_CALENDAR_SCOPES,
+          primaryCalendar,
+          calendars,
+          events: [],
+          googleError: {
+            status:
+              eventsResponse.status,
+            code:
+              eventsData.error?.code ??
+              null,
+            statusText:
+              eventsData.error?.status ??
+              null,
+            reason:
+              getGoogleErrorReason(
+                eventsData.error,
+              ),
+            message:
               eventsData.error?.message ??
-              'Frankie could not load calendar events.',
+              'Google Calendar returned an event error.',
           },
-          {
-            status: 502,
-          },
-        )
+          error:
+            eventsData.error?.message ??
+            'Frankie could not load calendar events.',
+        })
       }
 
       const events =
@@ -509,8 +706,7 @@ export default {
             allDay:
               Boolean(
                 event.start?.date &&
-                  !event.start
-                    ?.dateTime,
+                  !event.start?.dateTime,
               ),
             timeZone:
               event.start?.timeZone ??
@@ -524,6 +720,10 @@ export default {
       return Response.json({
         connected: true,
         needsCalendarPermission: false,
+        calendarApiEnabled: true,
+        grantedScopes,
+        requiredCalendarScopes:
+          REQUIRED_CALENDAR_SCOPES,
         primaryCalendar,
         calendars,
         events,
@@ -536,6 +736,11 @@ export default {
 
       return Response.json(
         {
+          connected: true,
+          needsCalendarPermission: false,
+          calendarApiEnabled: null,
+          calendars: [],
+          events: [],
           error:
             'Frankie could not load Google Calendar.',
         },
