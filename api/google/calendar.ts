@@ -47,6 +47,8 @@ type GoogleCalendarListResponse = {
     primary?: boolean
     accessRole?: string
     backgroundColor?: string
+    selected?: boolean
+    hidden?: boolean
   }>
   error?: GoogleApiError
 }
@@ -71,6 +73,30 @@ type GoogleCalendarEventsResponse = {
     }
   }>
   error?: GoogleApiError
+}
+
+type NormalizedCalendar = {
+  id: string
+  name: string
+  primary: boolean
+  accessRole: string | null
+  color: string | null
+  selected: boolean
+  hidden: boolean
+}
+
+type NormalizedEvent = {
+  id: string
+  title: string
+  description: string | null
+  location: string | null
+  link: string | null
+  start: string | null
+  end: string | null
+  allDay: boolean
+  timeZone: string | null
+  calendarId: string
+  calendarName: string
 }
 
 function getRequiredEnv(name: string): string {
@@ -217,6 +243,152 @@ async function refreshGoogleAccessToken(
     accessToken: data.access_token,
     expiresAt,
     scope: data.scope ?? null,
+  }
+}
+
+async function loadEventsForCalendar(
+  calendar: NormalizedCalendar,
+  googleAccessToken: string,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<{
+  events: NormalizedEvent[]
+  error: {
+    calendarId: string
+    calendarName: string
+    status: number
+    message: string
+    reason: string | null
+  } | null
+}> {
+  const eventsUrl =
+    new URL(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendar.id,
+      )}/events`,
+    )
+
+  eventsUrl.searchParams.set(
+    'timeMin',
+    rangeStart.toISOString(),
+  )
+
+  eventsUrl.searchParams.set(
+    'timeMax',
+    rangeEnd.toISOString(),
+  )
+
+  eventsUrl.searchParams.set(
+    'singleEvents',
+    'true',
+  )
+
+  eventsUrl.searchParams.set(
+    'orderBy',
+    'startTime',
+  )
+
+  eventsUrl.searchParams.set(
+    'maxResults',
+    '250',
+  )
+
+  const response =
+    await fetch(
+      eventsUrl,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${googleAccessToken}`,
+        },
+      },
+    )
+
+  const data =
+    (await response.json()) as
+      GoogleCalendarEventsResponse
+
+  if (!response.ok) {
+    const message =
+      data.error?.message ??
+      'Google Calendar returned an event error.'
+
+    console.error(
+      'Google Calendar events error:',
+      {
+        calendarId: calendar.id,
+        calendarName: calendar.name,
+        status: response.status,
+        reason:
+          getGoogleErrorReason(
+            data.error,
+          ),
+        error:
+          data.error,
+      },
+    )
+
+    return {
+      events: [],
+      error: {
+        calendarId: calendar.id,
+        calendarName: calendar.name,
+        status: response.status,
+        message,
+        reason:
+          getGoogleErrorReason(
+            data.error,
+          ),
+      },
+    }
+  }
+
+  const events =
+    (data.items ?? [])
+      .filter(
+        (event) =>
+          event.id &&
+          event.status !==
+            'cancelled',
+      )
+      .map(
+        (event): NormalizedEvent => ({
+          id: event.id!,
+          title:
+            event.summary ??
+            'Untitled event',
+          description:
+            event.description ?? null,
+          location:
+            event.location ?? null,
+          link:
+            event.htmlLink ?? null,
+          start:
+            event.start?.dateTime ??
+            event.start?.date ??
+            null,
+          end:
+            event.end?.dateTime ??
+            event.end?.date ??
+            null,
+          allDay:
+            Boolean(
+              event.start?.date &&
+                !event.start?.dateTime,
+            ),
+          timeZone:
+            event.start?.timeZone ??
+            null,
+          calendarId:
+            calendar.id,
+          calendarName:
+            calendar.name,
+        }),
+      )
+
+  return {
+    events,
+    error: null,
   }
 }
 
@@ -416,9 +588,12 @@ export default {
         }
       }
 
-      const grantedScopes = Array.from(
-        parseGrantedScopes(savedScope),
-      )
+      const grantedScopes =
+        Array.from(
+          parseGrantedScopes(
+            savedScope,
+          ),
+        )
 
       const calendarPermissionGranted =
         hasRequiredCalendarScopes(
@@ -440,16 +615,14 @@ export default {
         })
       }
 
-      const googleHeaders = {
-        Authorization:
-          `Bearer ${googleAccessToken}`,
-      }
-
       const calendarListResponse =
         await fetch(
           'https://www.googleapis.com/calendar/v3/users/me/calendarList',
           {
-            headers: googleHeaders,
+            headers: {
+              Authorization:
+                `Bearer ${googleAccessToken}`,
+            },
           },
         )
 
@@ -520,25 +693,40 @@ export default {
               calendar.id &&
               calendar.summary,
           )
-          .map((calendar) => ({
-            id: calendar.id!,
-            name: calendar.summary!,
-            primary:
-              calendar.primary ?? false,
-            accessRole:
-              calendar.accessRole ?? null,
-            color:
-              calendar.backgroundColor ??
-              null,
-          }))
+          .map(
+            (calendar): NormalizedCalendar => ({
+              id: calendar.id!,
+              name: calendar.summary!,
+              primary:
+                calendar.primary ?? false,
+              accessRole:
+                calendar.accessRole ?? null,
+              color:
+                calendar.backgroundColor ??
+                null,
+              selected:
+                calendar.selected ?? true,
+              hidden:
+                calendar.hidden ?? false,
+            }),
+          )
 
-      const now = new Date()
+      const primaryCalendar =
+        calendars.find(
+          (calendar) =>
+            calendar.primary,
+        ) ??
+        calendars[0] ??
+        null
+
+      const now =
+        new Date()
 
       const rangeStart =
         new Date(now)
 
       rangeStart.setDate(
-        rangeStart.getDate() - 7,
+        rangeStart.getDate() - 31,
       )
 
       rangeStart.setHours(
@@ -552,7 +740,7 @@ export default {
         new Date(now)
 
       rangeEnd.setDate(
-        rangeEnd.getDate() + 45,
+        rangeEnd.getDate() + 93,
       )
 
       rangeEnd.setHours(
@@ -562,160 +750,58 @@ export default {
         999,
       )
 
-      const primaryCalendar =
-        calendars.find(
+      /*
+       * IMPORTANT:
+       * The previous endpoint only fetched events from the primary calendar.
+       * Frankie now loads events from every visible connected calendar so
+       * "All connected calendars" actually means all connected calendars.
+       */
+      const calendarsToLoad =
+        calendars.filter(
           (calendar) =>
-            calendar.primary,
-        ) ??
-        calendars[0] ??
-        null
-
-      if (!primaryCalendar) {
-        return Response.json({
-          connected: true,
-          needsCalendarPermission: false,
-          calendarApiEnabled: true,
-          grantedScopes,
-          requiredCalendarScopes:
-            REQUIRED_CALENDAR_SCOPES,
-          primaryCalendar: null,
-          calendars,
-          events: [],
-        })
-      }
-
-      const eventsUrl =
-        new URL(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-            primaryCalendar.id,
-          )}/events`,
+            !calendar.hidden,
         )
 
-      eventsUrl.searchParams.set(
-        'timeMin',
-        rangeStart.toISOString(),
-      )
-
-      eventsUrl.searchParams.set(
-        'timeMax',
-        rangeEnd.toISOString(),
-      )
-
-      eventsUrl.searchParams.set(
-        'singleEvents',
-        'true',
-      )
-
-      eventsUrl.searchParams.set(
-        'orderBy',
-        'startTime',
-      )
-
-      eventsUrl.searchParams.set(
-        'maxResults',
-        '250',
-      )
-
-      const eventsResponse =
-        await fetch(
-          eventsUrl,
-          {
-            headers: googleHeaders,
-          },
-        )
-
-      const eventsData =
-        (await eventsResponse.json()) as
-          GoogleCalendarEventsResponse
-
-      if (!eventsResponse.ok) {
-        console.error(
-          'Google Calendar events error:',
-          {
-            status:
-              eventsResponse.status,
-            reason:
-              getGoogleErrorReason(
-                eventsData.error,
+      const eventResults =
+        await Promise.all(
+          calendarsToLoad.map(
+            (calendar) =>
+              loadEventsForCalendar(
+                calendar,
+                googleAccessToken,
+                rangeStart,
+                rangeEnd,
               ),
-            error:
-              eventsData.error,
-          },
+          ),
         )
-
-        return Response.json({
-          connected: true,
-          needsCalendarPermission: false,
-          calendarApiEnabled: true,
-          grantedScopes,
-          requiredCalendarScopes:
-            REQUIRED_CALENDAR_SCOPES,
-          primaryCalendar,
-          calendars,
-          events: [],
-          googleError: {
-            status:
-              eventsResponse.status,
-            code:
-              eventsData.error?.code ??
-              null,
-            statusText:
-              eventsData.error?.status ??
-              null,
-            reason:
-              getGoogleErrorReason(
-                eventsData.error,
-              ),
-            message:
-              eventsData.error?.message ??
-              'Google Calendar returned an event error.',
-          },
-          error:
-            eventsData.error?.message ??
-            'Frankie could not load calendar events.',
-        })
-      }
 
       const events =
-        (eventsData.items ?? [])
-          .filter(
-            (event) =>
-              event.id &&
-              event.status !==
-                'cancelled',
+        eventResults
+          .flatMap(
+            (result) =>
+              result.events,
           )
-          .map((event) => ({
-            id: event.id!,
-            title:
-              event.summary ??
-              'Untitled event',
-            description:
-              event.description ?? null,
-            location:
-              event.location ?? null,
-            link:
-              event.htmlLink ?? null,
-            start:
-              event.start?.dateTime ??
-              event.start?.date ??
-              null,
-            end:
-              event.end?.dateTime ??
-              event.end?.date ??
-              null,
-            allDay:
-              Boolean(
-                event.start?.date &&
-                  !event.start?.dateTime,
+          .sort(
+            (a, b) =>
+              (a.start ?? '').localeCompare(
+                b.start ?? '',
               ),
-            timeZone:
-              event.start?.timeZone ??
-              null,
-            calendarId:
-              primaryCalendar.id,
-            calendarName:
-              primaryCalendar.name,
-          }))
+          )
+
+      const calendarErrors =
+        eventResults
+          .map(
+            (result) =>
+              result.error,
+          )
+          .filter(
+            (
+              error,
+            ): error is NonNullable<
+              typeof error
+            > =>
+              error !== null,
+          )
 
       return Response.json({
         connected: true,
@@ -727,6 +813,9 @@ export default {
         primaryCalendar,
         calendars,
         events,
+        eventCount:
+          events.length,
+        calendarErrors,
       })
     } catch (error) {
       console.error(
