@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { supabase } from '../lib/supabase'
+import CalendarSetupPanel from './CalendarSetupPanel'
+import type { GoogleEventColor } from './CalendarSetupPanel'
 
 export type CalendarTask = {
   id: string
@@ -38,6 +40,9 @@ type GoogleCalendarEvent = {
   timeZone: string | null
   calendarId: string
   calendarName: string
+  colorId?: string | null
+  color?: string | null
+  textColor?: string | null
 }
 
 type CalendarApiResponse = {
@@ -47,6 +52,14 @@ type CalendarApiResponse = {
   primaryCalendar?: GoogleCalendar | null
   calendars?: GoogleCalendar[]
   events?: GoogleCalendarEvent[]
+  eventColors?: GoogleEventColor[]
+  eventCount?: number
+  calendarErrors?: Array<{
+    calendarId?: string
+    calendarName?: string
+    status?: number
+    error?: string
+  }>
   error?: string
 }
 
@@ -210,6 +223,7 @@ function CalendarWorkspace({
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCalendarId, setSelectedCalendarId] = useState('all')
   const [error, setError] = useState<string | null>(null)
+  const [showCalendarSetup, setShowCalendarSetup] = useState(false)
 
   const scopedTasks = useMemo(
     () =>
@@ -257,11 +271,18 @@ function CalendarWorkspace({
         return
       }
 
+      const requestUrl =
+        `/api/google/calendar?refresh=${Date.now()}`
+
       const response = await fetch(
-        '/api/google/calendar',
+        requestUrl,
         {
+          method: 'GET',
+          cache: 'no-store',
           headers: {
             Authorization: `Bearer ${accessToken}`,
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
           },
         },
       )
@@ -493,6 +514,14 @@ function CalendarWorkspace({
 
             <button
               type="button"
+              className="calendar-secondary-action"
+              onClick={() => setShowCalendarSetup(true)}
+            >
+              Calendar Setup
+            </button>
+
+            <button
+              type="button"
               className="calendar-primary-action"
               onClick={() =>
                 onTalkToFrankie(
@@ -631,6 +660,18 @@ function CalendarWorkspace({
                           <span
                             key={`event-${event.id}`}
                             className="calendar-mini-item google"
+                            style={
+                              event.color
+                                ? {
+                                    backgroundColor:
+                                      `${event.color}22`,
+                                    borderColor:
+                                      `${event.color}66`,
+                                    color:
+                                      event.color,
+                                  }
+                                : undefined
+                            }
                           >
                             {event.title}
                           </span>
@@ -705,6 +746,14 @@ function CalendarWorkspace({
                   <article
                     className="calendar-agenda-item google"
                     key={`agenda-event-${event.id}`}
+                    style={
+                      event.color
+                        ? {
+                            boxShadow:
+                              `inset 3px 0 0 ${event.color}`,
+                          }
+                        : undefined
+                    }
                   >
                     <div className="calendar-agenda-time">
                       {formatEventTime(
@@ -817,6 +866,14 @@ function CalendarWorkspace({
           </aside>
         </div>
       </div>
+
+      {showCalendarSetup && (
+        <CalendarSetupPanel
+          colors={calendarData.eventColors ?? []}
+          onClose={() => setShowCalendarSetup(false)}
+          onSaved={() => void loadCalendar()}
+        />
+      )}
     </section>
   )
 }
