@@ -257,11 +257,18 @@ function CalendarWorkspace({
         return
       }
 
+      const requestUrl =
+        `/api/google/calendar?refresh=${Date.now()}`
+
       const response = await fetch(
-        '/api/google/calendar',
+        requestUrl,
         {
+          method: 'GET',
+          cache: 'no-store',
           headers: {
             Authorization: `Bearer ${accessToken}`,
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
           },
         },
       )
