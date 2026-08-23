@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import './HomeWorkspace.css'
 import './TaskWorkspace.css'
 import './TodayWorkspace.css'
+import './ConnectionsWorkspace.css'
 
 type ChatMessage = {
   id: number
@@ -112,6 +113,39 @@ type GoogleStatusResponse = {
   error?: string
 }
 
+type GoogleCalendarStatusResponse = {
+  connected?: boolean
+  needsCalendarPermission?: boolean
+  primaryCalendar?: {
+    id: string
+    name: string
+  } | null
+  calendars?: Array<{
+    id: string
+    name: string
+    primary: boolean
+  }>
+  events?: Array<{
+    id: string
+    title: string
+    start: string | null
+    end: string | null
+    allDay: boolean
+  }>
+  error?: string
+}
+
+type ConnectionStatus = {
+  loading: boolean
+  googleConnected: boolean
+  sheetsConnected: boolean
+  spreadsheetName: string | null
+  calendarConnected: boolean
+  calendarName: string | null
+  needsCalendarPermission: boolean
+  error: string | null
+}
+
 type GoogleConnectResponse = {
   url?: string
   error?: string
@@ -121,7 +155,7 @@ type NavigationItem = {
   label: string
   symbol: string
   count?: number | null
-  action?: 'connections' | 'settings'
+  action?: 'settings'
 }
 
 type NavigationGroup = {
@@ -177,6 +211,16 @@ function HomePage() {
   const [showAccountMenu, setShowAccountMenu] = useState(false)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
+    loading: false,
+    googleConnected: false,
+    sheetsConnected: false,
+    spreadsheetName: null,
+    calendarConnected: false,
+    calendarName: null,
+    needsCalendarPermission: false,
+    error: null,
+  })
 
   const [ownerContext, setOwnerContext] = useState<OwnerContext>({
     preferredName: null,
@@ -367,7 +411,7 @@ function HomePage() {
     {
       label: 'SYSTEM',
       items: [
-        { label: 'Connections', symbol: '⌁', action: 'connections' },
+        { label: 'Connections', symbol: '⌁' },
         { label: 'Settings', symbol: '⚙', action: 'settings' },
       ],
     },
@@ -629,6 +673,11 @@ function HomePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (activeView !== 'Connections') return
+    void loadConnectionStatus()
+  }, [activeView])
+
   const changeTheme = (theme: ThemePreference) => {
     setThemePreference(theme)
     window.localStorage.setItem(THEME_STORAGE_KEY, theme)
@@ -803,6 +852,94 @@ function HomePage() {
     }
   }
 
+  const loadConnectionStatus = async () => {
+    setConnectionStatus((current) => ({
+      ...current,
+      loading: true,
+      error: null,
+    }))
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const accessToken = session?.access_token
+
+      if (!accessToken) {
+        navigate('/signin', { replace: true })
+        return
+      }
+
+      const [sheetsResponse, calendarResponse] = await Promise.all([
+        fetch('/api/google/status', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }),
+        fetch('/api/google/calendar', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }),
+      ])
+
+      const sheetsData =
+        (await sheetsResponse.json()) as GoogleStatusResponse
+
+      const calendarData =
+        (await calendarResponse.json()) as GoogleCalendarStatusResponse
+
+      const googleConnected =
+        Boolean(sheetsData.connected) ||
+        Boolean(calendarData.connected)
+
+      setConnectionStatus({
+        loading: false,
+        googleConnected,
+        sheetsConnected:
+          Boolean(
+            sheetsResponse.ok &&
+            sheetsData.connected &&
+            sheetsData.verified,
+          ),
+        spreadsheetName:
+          sheetsData.spreadsheetName ?? null,
+        calendarConnected:
+          Boolean(
+            calendarResponse.ok &&
+            calendarData.connected &&
+            !calendarData.needsCalendarPermission,
+          ),
+        calendarName:
+          calendarData.primaryCalendar?.name ?? null,
+        needsCalendarPermission:
+          Boolean(
+            calendarData.connected &&
+            calendarData.needsCalendarPermission,
+          ),
+        error:
+          !sheetsResponse.ok && !calendarResponse.ok
+            ? calendarData.error ??
+              sheetsData.error ??
+              'Frankie could not verify your Google connection.'
+            : null,
+      })
+    } catch (error) {
+      console.error(
+        'Frankie connection status error:',
+        error,
+      )
+
+      setConnectionStatus((current) => ({
+        ...current,
+        loading: false,
+        error:
+          'Frankie could not check your connections right now.',
+      }))
+    }
+  }
+
   const handleGoogleConnection = async () => {
     if (isConnectingGoogle) return
     setIsConnectingGoogle(true)
@@ -815,55 +952,41 @@ function HomePage() {
       const accessToken = session?.access_token
 
       if (!accessToken) {
-        window.alert('Your Frankie session expired. Please sign in again.')
         navigate('/signin', { replace: true })
         return
       }
 
-      const statusResponse = await fetch('/api/google/status', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
+      const connectResponse =
+        await fetch('/api/google/connect', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
 
-      const statusData = (await statusResponse.json()) as GoogleStatusResponse
-
-      if (statusResponse.ok && statusData.connected && statusData.verified) {
-        const tabText =
-          statusData.sheets && statusData.sheets.length > 0
-            ? `\n\nTabs Frankie can see: ${statusData.sheets.join(', ')}`
-            : ''
-
-        window.alert(
-          `Google Sheets is connected to ${statusData.spreadsheetName ?? 'the Business Kit'}.${tabText}`,
-        )
-        return
-      }
-
-      if (statusData.connected && !statusData.verified) {
-        window.alert(
-          statusData.error ??
-            'Google is connected, but Frankie cannot open the Business Kit yet.',
-        )
-        return
-      }
-
-      const connectResponse = await fetch('/api/google/connect', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      const connectData = (await connectResponse.json()) as GoogleConnectResponse
+      const connectData =
+        (await connectResponse.json()) as GoogleConnectResponse
 
       if (!connectResponse.ok || !connectData.url) {
-        throw new Error(connectData.error ?? 'Google connection could not start.')
+        throw new Error(
+          connectData.error ??
+            'Google connection could not start.',
+        )
       }
 
       window.location.assign(connectData.url)
     } catch (error) {
-      console.error('Frankie Google connection error:', error)
-      window.alert('I had trouble opening the Google connection. Try again.')
+      console.error(
+        'Frankie Google connection error:',
+        error,
+      )
+
+      setConnectionStatus((current) => ({
+        ...current,
+        error:
+          'I had trouble opening the Google connection. Try again.',
+      }))
     } finally {
       setIsConnectingGoogle(false)
     }
@@ -914,11 +1037,6 @@ function HomePage() {
     setShowAccountMenu(false)
     setShowQuickAdd(false)
     setEditingTask(null)
-
-    if (item.action === 'connections') {
-      void handleGoogleConnection()
-      return
-    }
 
     if (item.action === 'settings') {
       setShowSettings(true)
@@ -1083,6 +1201,7 @@ function HomePage() {
 
   const isTaskView = activeView === 'To-Do' || activeView === 'Parking Lot'
   const isTodayView = activeView === 'Today'
+  const isConnectionsView = activeView === 'Connections'
   const taskViewBucket: TaskBucket =
     activeView === 'Parking Lot' ? 'parking_lot' : 'todo'
   const visibleTaskList =
@@ -1100,7 +1219,9 @@ function HomePage() {
     ? activeView
     : isTodayView
       ? 'Today'
-      : 'Talk to Frankie'
+      : isConnectionsView
+        ? 'Connections'
+        : 'Talk to Frankie'
 
   return (
     <main className="frankie-home" data-workspace-theme={resolvedTheme}>
@@ -1250,6 +1371,20 @@ function HomePage() {
               >
                 <span>✦</span>
                 <span>Talk to Frankie</span>
+              </button>
+            ) : isConnectionsView ? (
+              <button
+                type="button"
+                className="header-command"
+                disabled={connectionStatus.loading}
+                onClick={() => void loadConnectionStatus()}
+              >
+                <span>↻</span>
+                <span>
+                  {connectionStatus.loading
+                    ? 'Checking...'
+                    : 'Refresh status'}
+                </span>
               </button>
             ) : (
               <button
@@ -1561,6 +1696,166 @@ function HomePage() {
                   ↑
                 </button>
               </form>
+            </section>
+          ) : isConnectionsView ? (
+            <section className="connections-workspace-panel">
+              <div className="connections-workspace-scroll">
+                <div className="connections-hero">
+                  <span className="connections-eyebrow">
+                    SYSTEM CONNECTIONS
+                  </span>
+                  <h2>Connect the tools Frankie can work with.</h2>
+                  <p>
+                    One Google connection can power your Business Kit,
+                    Calendar, and future Google tools. You stay in control
+                    of what Frankie can access.
+                  </p>
+                </div>
+
+                {connectionStatus.error && (
+                  <div className="connections-error">
+                    <strong>Connection check needs attention</strong>
+                    <p>{connectionStatus.error}</p>
+                  </div>
+                )}
+
+                <article className="connection-provider-card">
+                  <div className="connection-provider-header">
+                    <div className="connection-provider-icon">G</div>
+
+                    <div className="connection-provider-title">
+                      <strong>Google</strong>
+                      <span>
+                        Sheets, Calendar, and future Google tools
+                      </span>
+                    </div>
+
+                    <span
+                      className={
+                        connectionStatus.googleConnected
+                          ? 'connection-overall-status connected'
+                          : 'connection-overall-status'
+                      }
+                    >
+                      {connectionStatus.loading
+                        ? 'Checking'
+                        : connectionStatus.googleConnected
+                          ? 'Connected'
+                          : 'Not connected'}
+                    </span>
+                  </div>
+
+                  <div className="connection-capability-list">
+                    <div className="connection-capability-row">
+                      <div>
+                        <strong>Business Kit / Google Sheets</strong>
+                        <span>
+                          {connectionStatus.sheetsConnected
+                            ? connectionStatus.spreadsheetName ??
+                              'Google Sheets is connected.'
+                            : 'Connect Google so Frankie can work with your Business Kit.'}
+                        </span>
+                      </div>
+
+                      <span
+                        className={
+                          connectionStatus.sheetsConnected
+                            ? 'capability-status connected'
+                            : 'capability-status'
+                        }
+                      >
+                        {connectionStatus.sheetsConnected
+                          ? 'Connected'
+                          : 'Not connected'}
+                      </span>
+                    </div>
+
+                    <div className="connection-capability-row">
+                      <div>
+                        <strong>Google Calendar</strong>
+                        <span>
+                          {connectionStatus.calendarConnected
+                            ? connectionStatus.calendarName
+                              ? `Frankie can access ${connectionStatus.calendarName}.`
+                              : 'Frankie can access your Google Calendar.'
+                            : connectionStatus.needsCalendarPermission
+                              ? 'Google is connected, but Calendar permission still needs approval.'
+                              : 'Connect Calendar so Frankie can see and manage your schedule.'}
+                        </span>
+                      </div>
+
+                      <span
+                        className={
+                          connectionStatus.calendarConnected
+                            ? 'capability-status connected'
+                            : connectionStatus.needsCalendarPermission
+                              ? 'capability-status attention'
+                              : 'capability-status'
+                        }
+                      >
+                        {connectionStatus.calendarConnected
+                          ? 'Connected'
+                          : connectionStatus.needsCalendarPermission
+                            ? 'Needs permission'
+                            : 'Not connected'}
+                      </span>
+                    </div>
+
+                    <div className="connection-capability-row future">
+                      <div>
+                        <strong>Gmail</strong>
+                        <span>
+                          Email connection will be added when we build
+                          the Email workspace.
+                        </span>
+                      </div>
+
+                      <span className="capability-status future">
+                        Coming later
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="connection-provider-actions">
+                    <button
+                      type="button"
+                      className="connection-primary-button"
+                      disabled={isConnectingGoogle}
+                      onClick={() => void handleGoogleConnection()}
+                    >
+                      {isConnectingGoogle
+                        ? 'Opening Google...'
+                        : connectionStatus.googleConnected
+                          ? 'Reconnect Google'
+                          : 'Connect Google'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="connection-secondary-button"
+                      disabled={connectionStatus.loading}
+                      onClick={() => void loadConnectionStatus()}
+                    >
+                      {connectionStatus.loading
+                        ? 'Checking...'
+                        : 'Check connection'}
+                    </button>
+                  </div>
+                </article>
+
+                <div className="connections-note">
+                  <span>✦</span>
+                  <div>
+                    <strong>Why reconnect?</strong>
+                    <p>
+                      Your original Google connection was created for
+                      Sheets only. Reconnecting once lets Google ask
+                      you for the new Calendar permission without
+                      removing the Sheets connection.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </section>
           ) : isTaskView ? (
             <section className="task-workspace-panel">
