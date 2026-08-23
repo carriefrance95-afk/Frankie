@@ -22,24 +22,41 @@ type CalendarSetupPanelProps = {
   onSaved: () => void
 }
 
-const HOLIDAY_OPTIONS = [
+const HOLIDAY_GROUPS = [
   {
-    id: 'us-federal',
+    id: 'federal',
     title: 'U.S. Federal Holidays',
     description:
-      'New Year’s Day, Memorial Day, Independence Day, Labor Day, Thanksgiving, Christmas, and other federal holidays.',
+      'Choose only the federal holidays you actually want on your calendar.',
+    items: [
+      ['new-years-day', 'New Year’s Day'],
+      ['mlk-day', 'Martin Luther King Jr. Day'],
+      ['presidents-day', 'Presidents’ Day'],
+      ['memorial-day', 'Memorial Day'],
+      ['juneteenth', 'Juneteenth'],
+      ['independence-day', 'Independence Day'],
+      ['labor-day', 'Labor Day'],
+      ['columbus-day', 'Columbus / Indigenous Peoples’ Day'],
+      ['veterans-day', 'Veterans Day'],
+      ['thanksgiving', 'Thanksgiving'],
+      ['christmas-day', 'Christmas Day'],
+    ],
   },
   {
-    id: 'retail-marketing',
+    id: 'retail',
     title: 'Retail & Marketing Dates',
     description:
-      'Valentine’s Day, Mother’s Day, Father’s Day, Halloween, Black Friday, Cyber Monday, Small Business Saturday, and other planning dates.',
-  },
-  {
-    id: 'birthdays',
-    title: 'Birthdays',
-    description:
-      'Keep birthday dates visible and give Frankie a consistent birthday color rule.',
+      'Useful dates for promotions, planning, and seasonal business activity.',
+    items: [
+      ['valentines-day', 'Valentine’s Day'],
+      ['easter', 'Easter'],
+      ['mothers-day', 'Mother’s Day'],
+      ['fathers-day', 'Father’s Day'],
+      ['halloween', 'Halloween'],
+      ['black-friday', 'Black Friday'],
+      ['small-business-saturday', 'Small Business Saturday'],
+      ['cyber-monday', 'Cyber Monday'],
+    ],
   },
 ]
 
@@ -49,13 +66,15 @@ function CalendarSetupPanel({
   onSaved,
 }: CalendarSetupPanelProps) {
   const [rules, setRules] = useState<CalendarColorRule[]>([])
-  const [holidayPacks, setHolidayPacks] = useState<string[]>([])
+  const [holidayItems, setHolidayItems] = useState<string[]>([])
   const [defaultDuration, setDefaultDuration] = useState(60)
   const [defaultRecurrenceEnd, setDefaultRecurrenceEnd] =
     useState('never')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [holidaySyncMessage, setHolidaySyncMessage] =
+    useState<string | null>(null)
 
   const sortedColors = useMemo(
     () =>
@@ -130,7 +149,7 @@ function CalendarSetupPanel({
       const preferences = preferencesResult.data
 
       if (preferences) {
-        setHolidayPacks(
+        setHolidayItems(
           Array.isArray(preferences.holiday_packs)
             ? preferences.holiday_packs
             : [],
@@ -171,8 +190,8 @@ function CalendarSetupPanel({
     )
   }
 
-  const toggleHolidayPack = (id: string) => {
-    setHolidayPacks((current) =>
+  const toggleHolidayItem = (id: string) => {
+    setHolidayItems((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
         : [...current, id],
@@ -184,6 +203,7 @@ function CalendarSetupPanel({
 
     setIsSaving(true)
     setError(null)
+    setHolidaySyncMessage(null)
 
     try {
       const {
@@ -201,7 +221,7 @@ function CalendarSetupPanel({
             owner_id: user.id,
             setup_complete: true,
             holiday_region: 'US',
-            holiday_packs: holidayPacks,
+            holiday_packs: holidayItems,
             default_event_duration_minutes: defaultDuration,
             default_recurrence_end: defaultRecurrenceEnd,
             updated_at: new Date().toISOString(),
@@ -251,6 +271,43 @@ function CalendarSetupPanel({
         if (insertResult.error) {
           throw insertResult.error
         }
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const accessToken = session?.access_token
+
+      if (!accessToken) {
+        throw new Error('Your Frankie session has expired.')
+      }
+
+      setHolidaySyncMessage(
+        'Syncing selected holidays to Google Calendar...',
+      )
+
+      const holidayResponse = await fetch(
+        '/api/google/holidays',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            holidayIds: holidayItems,
+          }),
+        },
+      )
+
+      const holidayData = await holidayResponse.json()
+
+      if (!holidayResponse.ok) {
+        throw new Error(
+          holidayData.error ??
+            'Frankie could not sync your selected holidays.',
+        )
       }
 
       onSaved()
@@ -393,45 +450,65 @@ function CalendarSetupPanel({
                 <div>
                   <span>2</span>
                   <div>
-                    <h3>Which special dates do you want?</h3>
+                    <h3>Which holidays and special dates do you want?</h3>
                     <p>
-                      We are saving these choices now. The actual holiday
-                      import/subscription comes in the next Calendar build.
+                      Pick only the dates that are useful to you. Frankie
+                      will add them to Google Calendar and keep her own
+                      managed copies from duplicating.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="calendar-holiday-options">
-                {HOLIDAY_OPTIONS.map((option) => {
-                  const selected = holidayPacks.includes(option.id)
+              <div className="calendar-holiday-groups">
+                {HOLIDAY_GROUPS.map((group) => (
+                  <div
+                    className="calendar-holiday-group"
+                    key={group.id}
+                  >
+                    <div className="calendar-holiday-group-heading">
+                      <strong>{group.title}</strong>
+                      <span>{group.description}</span>
+                    </div>
 
-                  return (
-                    <button
-                      type="button"
-                      key={option.id}
-                      className={[
-                        'calendar-holiday-option',
-                        selected ? 'selected' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() =>
-                        toggleHolidayPack(option.id)
-                      }
-                    >
-                      <span className="calendar-holiday-check">
-                        {selected ? '✓' : ''}
-                      </span>
+                    <div className="calendar-holiday-options">
+                      {group.items.map(([id, title]) => {
+                        const selected = holidayItems.includes(id)
 
-                      <div>
-                        <strong>{option.title}</strong>
-                        <p>{option.description}</p>
-                      </div>
-                    </button>
-                  )
-                })}
+                        return (
+                          <button
+                            type="button"
+                            key={id}
+                            className={[
+                              'calendar-holiday-option',
+                              selected ? 'selected' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            onClick={() =>
+                              toggleHolidayItem(id)
+                            }
+                          >
+                            <span className="calendar-holiday-check">
+                              {selected ? '✓' : ''}
+                            </span>
+
+                            <div>
+                              <strong>{title}</strong>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
+
+              {holidaySyncMessage && (
+                <div className="calendar-holiday-sync-message">
+                  {holidaySyncMessage}
+                </div>
+              )}
             </section>
 
             <section className="calendar-setup-section">

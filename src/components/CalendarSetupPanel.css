@@ -336,3 +336,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.calendar-holiday-groups {
+  display: grid;
+  gap: 14px;
+  margin-top: 13px;
+}
+
+.calendar-holiday-group {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.calendar-holiday-group-heading {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+
+.calendar-holiday-group-heading strong {
+  color: var(--text-secondary);
+  font-size: .65rem;
+}
+
+.calendar-holiday-group-heading span {
+  color: var(--text-faint);
+  font-size: .53rem;
+  line-height: 1.4;
+}
+
+.calendar-holiday-group .calendar-holiday-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.calendar-holiday-group .calendar-holiday-option {
+  min-height: 42px;
+  align-items: center;
+}
+
+.calendar-holiday-sync-message {
+  margin-top: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: .55rem;
+}
+
+@media (max-width: 760px) {
+  .calendar-holiday-group .calendar-holiday-options {
+    grid-template-columns: 1fr;
+  }
+}
