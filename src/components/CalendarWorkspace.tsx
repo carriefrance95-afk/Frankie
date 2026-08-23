@@ -47,13 +47,6 @@ type CalendarApiResponse = {
   primaryCalendar?: GoogleCalendar | null
   calendars?: GoogleCalendar[]
   events?: GoogleCalendarEvent[]
-  eventCount?: number
-  calendarErrors?: Array<{
-    calendarId?: string
-    calendarName?: string
-    status?: number
-    error?: string
-  }>
   error?: string
 }
 
@@ -264,18 +257,11 @@ function CalendarWorkspace({
         return
       }
 
-      const requestUrl =
-        `/api/google/calendar?refresh=${Date.now()}`
-
       const response = await fetch(
-        requestUrl,
+        '/api/google/calendar',
         {
-          method: 'GET',
-          cache: 'no-store',
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
           },
         },
       )
@@ -526,88 +512,6 @@ function CalendarWorkspace({
             {error}
           </div>
         )}
-
-        <div
-          style={{
-            margin: '0 0 14px',
-            padding: '12px 14px',
-            border: '1px solid var(--border-strong)',
-            borderRadius: '10px',
-            background: 'var(--surface-1)',
-            color: 'var(--text-secondary)',
-            fontSize: '.68rem',
-            lineHeight: 1.6,
-          }}
-        >
-          <strong
-            style={{
-              display: 'block',
-              marginBottom: '6px',
-              color: 'var(--accent)',
-              letterSpacing: '.08em',
-            }}
-          >
-            CALENDAR DIAGNOSTIC
-          </strong>
-
-          <div>
-            Connected: {String(Boolean(calendarData.connected))}
-          </div>
-          <div>
-            Needs permission:{' '}
-            {String(Boolean(calendarData.needsCalendarPermission))}
-          </div>
-          <div>
-            Calendar API enabled:{' '}
-            {String(calendarData.calendarApiEnabled)}
-          </div>
-          <div>
-            Calendars returned: {calendars.length}
-          </div>
-          <div>
-            Events returned:{' '}
-            {calendarData.eventCount ??
-              (calendarData.events ?? []).length}
-          </div>
-          <div>
-            Primary calendar:{' '}
-            {calendarData.primaryCalendar?.name ?? 'None returned'}
-          </div>
-          <div>
-            Calendar errors:{' '}
-            {(calendarData.calendarErrors ?? []).length}
-          </div>
-
-          {(calendarData.calendarErrors ?? []).map(
-            (calendarError, index) => (
-              <div
-                key={`${calendarError.calendarId ?? 'calendar'}-${index}`}
-                style={{
-                  marginTop: '5px',
-                  color: 'var(--danger)',
-                }}
-              >
-                {calendarError.calendarName ??
-                  calendarError.calendarId ??
-                  'Calendar'}:{' '}
-                {calendarError.status
-                  ? `${calendarError.status} · `
-                  : ''}
-                {calendarError.error ?? 'Unknown calendar error'}
-              </div>
-            ),
-          )}
-
-          {(calendarData.events ?? []).length > 0 && (
-            <div style={{ marginTop: '7px' }}>
-              First event returned:{' '}
-              <strong>
-                {calendarData.events?.[0]?.title ?? 'Untitled'}
-              </strong>{' '}
-              · {calendarData.events?.[0]?.start ?? 'No start'}
-            </div>
-          )}
-        </div>
 
         <div className="calendar-toolbar">
           <div className="calendar-nav-controls">
