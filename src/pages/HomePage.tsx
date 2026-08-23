@@ -4,11 +4,17 @@ import { useNavigate } from 'react-router-dom'
 import frankieMain from '../assets/frankie/frankie-main.png'
 import frankieConversation from '../assets/frankie/frankie-conversation.png'
 import { supabase } from '../lib/supabase'
+import CalendarWorkspace from '../components/CalendarWorkspace'
+import type {
+  CalendarBusiness,
+  CalendarTask,
+} from '../components/CalendarWorkspace'
 
 import './HomeWorkspace.css'
 import './TaskWorkspace.css'
 import './TodayWorkspace.css'
 import './ConnectionsWorkspace.css'
+import '../components/CalendarWorkspace.css'
 
 type ChatMessage = {
   id: number
@@ -1201,6 +1207,7 @@ function HomePage() {
 
   const isTaskView = activeView === 'To-Do' || activeView === 'Parking Lot'
   const isTodayView = activeView === 'Today'
+  const isCalendarView = activeView === 'Calendar'
   const isConnectionsView = activeView === 'Connections'
   const taskViewBucket: TaskBucket =
     activeView === 'Parking Lot' ? 'parking_lot' : 'todo'
@@ -1219,9 +1226,11 @@ function HomePage() {
     ? activeView
     : isTodayView
       ? 'Today'
-      : isConnectionsView
-        ? 'Connections'
-        : 'Talk to Frankie'
+      : isCalendarView
+        ? 'Calendar'
+        : isConnectionsView
+          ? 'Connections'
+          : 'Talk to Frankie'
 
   return (
     <main className="frankie-home" data-workspace-theme={resolvedTheme}>
@@ -1363,11 +1372,16 @@ function HomePage() {
                 <span>＋</span>
                 <span>Add task</span>
               </button>
-            ) : isTodayView ? (
+            ) : isTodayView || isCalendarView ? (
               <button
                 type="button"
                 className="header-command today-talk-button"
-                onClick={() => setActiveView('Talk to Frankie')}
+                onClick={() => {
+                  if (isCalendarView) {
+                    setMessage('Help me plan my calendar.')
+                  }
+                  setActiveView('Talk to Frankie')
+                }}
               >
                 <span>✦</span>
                 <span>Talk to Frankie</span>
@@ -1697,6 +1711,45 @@ function HomePage() {
                 </button>
               </form>
             </section>
+          ) : isCalendarView ? (
+            <CalendarWorkspace
+              tasks={activeTasks.map(
+                (task): CalendarTask => ({
+                  id: task.id,
+                  business_id: task.business_id,
+                  title: task.title,
+                  description: task.description,
+                  priority: task.priority,
+                  due_date: task.due_date,
+                  due_time: task.due_time,
+                  project: task.project,
+                }),
+              )}
+              businesses={ownerContext.businesses.map(
+                (business): CalendarBusiness => ({
+                  id: business.id,
+                  name: business.name,
+                }),
+              )}
+              selectedContextId={selectedContext.id}
+              selectedContextType={selectedContext.type}
+              onOpenTask={(taskId) => {
+                const task = tasks.find(
+                  (candidate) => candidate.id === taskId,
+                )
+
+                if (task) {
+                  openTaskEditor(task)
+                }
+              }}
+              onTalkToFrankie={(prompt) => {
+                setMessage(prompt)
+                setActiveView('Talk to Frankie')
+              }}
+              onOpenConnections={() => {
+                setActiveView('Connections')
+              }}
+            />
           ) : isConnectionsView ? (
             <section className="connections-workspace-panel">
               <div className="connections-workspace-scroll">
