@@ -35,10 +35,22 @@ type CalendarEventRequest = {
   recurrenceEndDate?: string | null
 }
 
+type GoogleCalendarListResponse = {
+  items?: Array<{
+    id?: string
+    summary?: string
+    primary?: boolean
+    timeZone?: string
+  }>
+  error?: {
+    message?: string
+  }
+}
+
 type GoogleCalendarMetadata = {
-  id?: string
-  summary?: string
-  timeZone?: string
+  id: string
+  summary: string
+  timeZone: string | null
 }
 
 type GoogleEventResponse = {
@@ -597,31 +609,55 @@ async function refreshGoogleAccessToken(
 
 async function loadPrimaryCalendar(
   accessToken: string,
-) {
+): Promise<GoogleCalendarMetadata> {
   const response =
     await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars/primary',
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList',
       {
         cache:
           'no-store',
         headers: {
           Authorization:
             `Bearer ${accessToken}`,
+          'Cache-Control':
+            'no-cache',
         },
       },
     )
 
   const data =
     (await response.json()) as
-      GoogleCalendarMetadata
+      GoogleCalendarListResponse
 
   if (!response.ok) {
     throw new Error(
-      'Frankie could not read the primary Google Calendar.',
+      data.error?.message ??
+        'Frankie could not read the connected Google calendars.',
     )
   }
 
-  return data
+  const primaryCalendar =
+    (data.items ?? []).find(
+      (calendar) =>
+        calendar.primary === true &&
+        Boolean(calendar.id),
+    )
+
+  if (!primaryCalendar?.id) {
+    throw new Error(
+      'Frankie could not identify the primary Google Calendar.',
+    )
+  }
+
+  return {
+    id: primaryCalendar.id,
+    summary:
+      primaryCalendar.summary ??
+      'Primary Calendar',
+    timeZone:
+      primaryCalendar.timeZone ??
+      null,
+  }
 }
 
 async function createGoogleEvent(
