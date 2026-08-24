@@ -195,6 +195,10 @@ function buildMonthGrid(monthDate: Date): DayItem[] {
   })
 }
 
+function getEventTextColor(event: GoogleCalendarEvent) {
+  return event.textColor ?? '#ffffff'
+}
+
 function CalendarWorkspace({
   tasks,
   businesses,
@@ -215,15 +219,18 @@ function CalendarWorkspace({
   )
 
   const [selectedDate, setSelectedDate] = useState(initialToday)
-  const [calendarData, setCalendarData] = useState<CalendarApiResponse>({
-    connected: false,
-    calendars: [],
-    events: [],
-  })
+  const [calendarData, setCalendarData] =
+    useState<CalendarApiResponse>({
+      connected: false,
+      calendars: [],
+      events: [],
+    })
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedCalendarId, setSelectedCalendarId] = useState('all')
+  const [selectedCalendarId, setSelectedCalendarId] =
+    useState('all')
   const [error, setError] = useState<string | null>(null)
-  const [showCalendarSetup, setShowCalendarSetup] = useState(false)
+  const [showCalendarSetup, setShowCalendarSetup] =
+    useState(false)
 
   const scopedTasks = useMemo(
     () =>
@@ -300,6 +307,7 @@ function CalendarWorkspace({
         'Frankie Calendar workspace load error:',
         requestError,
       )
+
       setError(
         'Frankie could not load Google Calendar right now.',
       )
@@ -515,7 +523,9 @@ function CalendarWorkspace({
             <button
               type="button"
               className="calendar-secondary-action"
-              onClick={() => setShowCalendarSetup(true)}
+              onClick={() =>
+                setShowCalendarSetup(true)
+              }
             >
               Calendar Setup
             </button>
@@ -664,11 +674,13 @@ function CalendarWorkspace({
                               event.color
                                 ? {
                                     backgroundColor:
-                                      `${event.color}22`,
-                                    borderColor:
-                                      `${event.color}66`,
-                                    color:
                                       event.color,
+                                    borderColor:
+                                      event.color,
+                                    color:
+                                      getEventTextColor(
+                                        event,
+                                      ),
                                   }
                                 : undefined
                             }
@@ -716,6 +728,7 @@ function CalendarWorkspace({
           <aside className="calendar-day-panel">
             <div className="calendar-day-panel-header">
               <span>DAY VIEW</span>
+
               <h3>
                 {formatSelectedDay(
                   selectedDate,
@@ -742,58 +755,127 @@ function CalendarWorkspace({
 
             <div className="calendar-day-agenda">
               {selectedGoogleEvents.map(
-                (event) => (
-                  <article
-                    className="calendar-agenda-item google"
-                    key={`agenda-event-${event.id}`}
-                    style={
-                      event.color
-                        ? {
-                            boxShadow:
-                              `inset 3px 0 0 ${event.color}`,
-                          }
-                        : undefined
-                    }
-                  >
-                    <div className="calendar-agenda-time">
-                      {formatEventTime(
-                        event,
-                      )}
-                    </div>
+                (event) => {
+                  const eventTextColor =
+                    getEventTextColor(event)
 
-                    <div className="calendar-agenda-copy">
-                      <div className="calendar-item-type">
-                        Google Calendar
+                  return (
+                    <article
+                      className="calendar-agenda-item google"
+                      key={`agenda-event-${event.id}`}
+                      style={
+                        event.color
+                          ? {
+                              backgroundColor:
+                                event.color,
+                              borderColor:
+                                event.color,
+                              color:
+                                eventTextColor,
+                              boxShadow: 'none',
+                            }
+                          : undefined
+                      }
+                    >
+                      <div
+                        className="calendar-agenda-time"
+                        style={
+                          event.color
+                            ? {
+                                color:
+                                  eventTextColor,
+                                opacity: 0.82,
+                              }
+                            : undefined
+                        }
+                      >
+                        {formatEventTime(
+                          event,
+                        )}
                       </div>
 
-                      <strong>
-                        {event.title}
-                      </strong>
-
-                      {event.location && (
-                        <p>
-                          {event.location}
-                        </p>
-                      )}
-
-                      {event.description && (
-                        <p>
-                          {event.description}
-                        </p>
-                      )}
-
-                      {event.link && (
-                        <a
-                          href={event.link}
-                          target="_blank"
-                          rel="noreferrer"
+                      <div className="calendar-agenda-copy">
+                        <div
+                          className="calendar-item-type"
+                          style={
+                            event.color
+                              ? {
+                                  color:
+                                    eventTextColor,
+                                  opacity: 0.75,
+                                }
+                              : undefined
+                          }
                         >
-                          Open in Google
-                        </a>
-                      )}
-                    </div>
-                  </article>
-                ),
+                          Google Calendar
+                        </div>
+
+                        <strong
+                          style={
+                            event.color
+                              ? {
+                                  color:
+                                    eventTextColor,
+                                }
+                              : undefined
+                          }
+                        >
+                          {event.title}
+                        </strong>
+
+                        {event.location && (
+                          <p
+                            style={
+                              event.color
+                                ? {
+                                    color:
+                                      eventTextColor,
+                                    opacity: 0.82,
+                                  }
+                                : undefined
+                            }
+                          >
+                            {event.location}
+                          </p>
+                        )}
+
+                        {event.description && (
+                          <p
+                            style={
+                              event.color
+                                ? {
+                                    color:
+                                      eventTextColor,
+                                    opacity: 0.82,
+                                  }
+                                : undefined
+                            }
+                          >
+                            {event.description}
+                          </p>
+                        )}
+
+                        {event.link && (
+                          <a
+                            href={event.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={
+                              event.color
+                                ? {
+                                    color:
+                                      eventTextColor,
+                                  }
+                                : undefined
+                            }
+                          >
+                            Open in Google
+                          </a>
+                        )}
+                      </div>
+                    </article>
+                  )
+                },
               )}
 
               {selectedTasks.map(
@@ -839,9 +921,11 @@ function CalendarWorkspace({
                 selectedTasks.length === 0 && (
                   <div className="calendar-empty-day">
                     <span>◇</span>
+
                     <strong>
                       Nothing scheduled.
                     </strong>
+
                     <p>
                       This day is clear right
                       now.
@@ -870,8 +954,12 @@ function CalendarWorkspace({
       {showCalendarSetup && (
         <CalendarSetupPanel
           colors={calendarData.eventColors ?? []}
-          onClose={() => setShowCalendarSetup(false)}
-          onSaved={() => void loadCalendar()}
+          onClose={() =>
+            setShowCalendarSetup(false)
+          }
+          onSaved={() =>
+            void loadCalendar()
+          }
         />
       )}
     </section>

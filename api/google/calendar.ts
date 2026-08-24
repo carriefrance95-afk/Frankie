@@ -47,26 +47,29 @@ type GoogleCalendarListResponse = {
   error?: GoogleApiError
 }
 
+type GoogleCalendarEvent = {
+  id?: string
+  status?: string
+  summary?: string
+  description?: string
+  location?: string
+  htmlLink?: string
+  colorId?: string
+  start?: {
+    date?: string
+    dateTime?: string
+    timeZone?: string
+  }
+  end?: {
+    date?: string
+    dateTime?: string
+    timeZone?: string
+  }
+}
+
 type GoogleCalendarEventsResponse = {
-  items?: Array<{
-    id?: string
-    status?: string
-    summary?: string
-    description?: string
-    location?: string
-    htmlLink?: string
-    colorId?: string
-    start?: {
-      date?: string
-      dateTime?: string
-      timeZone?: string
-    }
-    end?: {
-      date?: string
-      dateTime?: string
-      timeZone?: string
-    }
-  }>
+  items?: GoogleCalendarEvent[]
+  nextPageToken?: string
   error?: GoogleApiError
 }
 
@@ -102,6 +105,7 @@ function jsonNoStore(
   init: ResponseInit = {},
 ): Response {
   const headers = new Headers(init.headers)
+
   headers.set(
     'Cache-Control',
     'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -127,16 +131,23 @@ function getRequiredEnv(name: string): string {
 }
 
 function getBearerToken(request: Request): string | null {
-  const authorization = request.headers.get('authorization')
+  const authorization =
+    request.headers.get('authorization')
 
   if (!authorization?.startsWith('Bearer ')) {
     return null
   }
 
-  return authorization.slice('Bearer '.length).trim() || null
+  return (
+    authorization
+      .slice('Bearer '.length)
+      .trim() || null
+  )
 }
 
-function parseGrantedScopes(scopeValue: string | null): Set<string> {
+function parseGrantedScopes(
+  scopeValue: string | null,
+): Set<string> {
   return new Set(
     (scopeValue ?? '')
       .split(/\s+/)
@@ -145,31 +156,45 @@ function parseGrantedScopes(scopeValue: string | null): Set<string> {
   )
 }
 
-function hasRequiredCalendarScopes(scopeValue: string | null): boolean {
-  const grantedScopes = parseGrantedScopes(scopeValue)
+function hasRequiredCalendarScopes(
+  scopeValue: string | null,
+): boolean {
+  const grantedScopes =
+    parseGrantedScopes(scopeValue)
 
-  return REQUIRED_CALENDAR_SCOPES.every((scope) =>
-    grantedScopes.has(scope),
+  return REQUIRED_CALENDAR_SCOPES.every(
+    (scope) => grantedScopes.has(scope),
   )
 }
 
 function getGoogleErrorReason(
   error: GoogleApiError | undefined,
 ): string | null {
-  return error?.errors?.find((item) => item.reason)?.reason ?? null
+  return (
+    error?.errors?.find(
+      (item) => item.reason,
+    )?.reason ?? null
+  )
 }
 
 function isCalendarApiDisabled(
   error: GoogleApiError | undefined,
 ): boolean {
-  const reason = getGoogleErrorReason(error)
-  const message = error?.message?.toLowerCase() ?? ''
+  const reason =
+    getGoogleErrorReason(error)
+
+  const message =
+    error?.message?.toLowerCase() ?? ''
 
   return (
     reason === 'accessNotConfigured' ||
     reason === 'SERVICE_DISABLED' ||
-    message.includes('calendar api has not been used') ||
-    message.includes('calendar api has not been enabled') ||
+    message.includes(
+      'calendar api has not been used',
+    ) ||
+    message.includes(
+      'calendar api has not been enabled',
+    ) ||
     message.includes('api is disabled')
   )
 }
@@ -189,7 +214,8 @@ async function refreshGoogleAccessToken(
       method: 'POST',
       cache: 'no-store',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type':
+          'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         client_id: clientId,
@@ -200,17 +226,25 @@ async function refreshGoogleAccessToken(
     },
   )
 
-  const data = (await response.json()) as GoogleTokenResponse
+  const data =
+    (await response.json()) as GoogleTokenResponse
 
   if (!response.ok || !data.access_token) {
-    console.error('Google Calendar token refresh failed:', data)
-    throw new Error('Could not refresh Google access.')
+    console.error(
+      'Google Calendar token refresh failed:',
+      data,
+    )
+
+    throw new Error(
+      'Could not refresh Google access.',
+    )
   }
 
   return {
     accessToken: data.access_token,
     expiresAt: new Date(
-      Date.now() + (data.expires_in ?? 3600) * 1000,
+      Date.now() +
+        (data.expires_in ?? 3600) * 1000,
     ).toISOString(),
     scope: data.scope ?? null,
   }
@@ -223,61 +257,112 @@ async function loadEventsForCalendar(
   rangeEnd: Date,
   eventColors: Map<string, EventColor>,
 ) {
-  const eventsUrl = new URL(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendar.id,
-    )}/events`,
-  )
+  const rawEvents: GoogleCalendarEvent[] = []
+  let pageToken: string | undefined
 
-  eventsUrl.searchParams.set('timeMin', rangeStart.toISOString())
-  eventsUrl.searchParams.set('timeMax', rangeEnd.toISOString())
-  eventsUrl.searchParams.set('singleEvents', 'true')
-  eventsUrl.searchParams.set('orderBy', 'startTime')
-  eventsUrl.searchParams.set('maxResults', '250')
+  do {
+    const eventsUrl = new URL(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendar.id,
+      )}/events`,
+    )
 
-  const response = await fetch(eventsUrl, {
-    cache: 'no-store',
-    headers: {
-      Authorization: `Bearer ${googleAccessToken}`,
-      'Cache-Control': 'no-cache',
-    },
-  })
+    eventsUrl.searchParams.set(
+      'timeMin',
+      rangeStart.toISOString(),
+    )
 
-  const data =
-    (await response.json()) as GoogleCalendarEventsResponse
+    eventsUrl.searchParams.set(
+      'timeMax',
+      rangeEnd.toISOString(),
+    )
 
-  if (!response.ok) {
-    return {
-      events: [],
-      error: {
-        calendarId: calendar.id,
-        calendarName: calendar.name,
-        status: response.status,
-        error:
-          data.error?.message ??
-          'Google Calendar returned an event error.',
-      },
+    eventsUrl.searchParams.set(
+      'singleEvents',
+      'true',
+    )
+
+    eventsUrl.searchParams.set(
+      'orderBy',
+      'startTime',
+    )
+
+    eventsUrl.searchParams.set(
+      'maxResults',
+      '250',
+    )
+
+    if (pageToken) {
+      eventsUrl.searchParams.set(
+        'pageToken',
+        pageToken,
+      )
     }
-  }
+
+    const response = await fetch(
+      eventsUrl,
+      {
+        cache: 'no-store',
+        headers: {
+          Authorization:
+            `Bearer ${googleAccessToken}`,
+          'Cache-Control': 'no-cache',
+        },
+      },
+    )
+
+    const data =
+      (await response.json()) as
+        GoogleCalendarEventsResponse
+
+    if (!response.ok) {
+      return {
+        events: [],
+        error: {
+          calendarId: calendar.id,
+          calendarName: calendar.name,
+          status: response.status,
+          error:
+            data.error?.message ??
+            'Google Calendar returned an event error.',
+        },
+      }
+    }
+
+    rawEvents.push(
+      ...(data.items ?? []),
+    )
+
+    pageToken =
+      data.nextPageToken
+  } while (pageToken)
 
   return {
-    events: (data.items ?? [])
+    events: rawEvents
       .filter(
         (event) =>
           event.id &&
           event.status !== 'cancelled',
       )
       .map((event) => {
-        const eventColor = event.colorId
-          ? eventColors.get(event.colorId)
-          : null
+        const eventColor =
+          event.colorId
+            ? eventColors.get(
+                event.colorId,
+              )
+            : null
 
         return {
           id: event.id!,
-          title: event.summary ?? 'Untitled event',
-          description: event.description ?? null,
-          location: event.location ?? null,
-          link: event.htmlLink ?? null,
+          title:
+            event.summary ??
+            'Untitled event',
+          description:
+            event.description ?? null,
+          location:
+            event.location ?? null,
+          link:
+            event.htmlLink ?? null,
           start:
             event.start?.dateTime ??
             event.start?.date ??
@@ -290,10 +375,15 @@ async function loadEventsForCalendar(
             event.start?.date &&
               !event.start?.dateTime,
           ),
-          timeZone: event.start?.timeZone ?? null,
-          calendarId: calendar.id,
-          calendarName: calendar.name,
-          colorId: event.colorId ?? null,
+          timeZone:
+            event.start?.timeZone ??
+            null,
+          calendarId:
+            calendar.id,
+          calendarName:
+            calendar.name,
+          colorId:
+            event.colorId ?? null,
           color:
             eventColor?.background ??
             calendar.color,
@@ -307,43 +397,69 @@ async function loadEventsForCalendar(
 }
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(
+    request: Request,
+  ): Promise<Response> {
     if (request.method !== 'GET') {
       return jsonNoStore(
-        { error: 'Method not allowed' },
-        { status: 405 },
+        {
+          error:
+            'Method not allowed',
+        },
+        {
+          status: 405,
+        },
       )
     }
 
     try {
       const supabaseUrl =
-        getRequiredEnv('VITE_SUPABASE_URL')
-      const serviceRoleKey =
-        getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY')
-      const googleClientId =
-        getRequiredEnv('GOOGLE_CLIENT_ID')
-      const googleClientSecret =
-        getRequiredEnv('GOOGLE_CLIENT_SECRET')
+        getRequiredEnv(
+          'VITE_SUPABASE_URL',
+        )
 
-      const frankieAccessToken = getBearerToken(request)
+      const serviceRoleKey =
+        getRequiredEnv(
+          'SUPABASE_SERVICE_ROLE_KEY',
+        )
+
+      const googleClientId =
+        getRequiredEnv(
+          'GOOGLE_CLIENT_ID',
+        )
+
+      const googleClientSecret =
+        getRequiredEnv(
+          'GOOGLE_CLIENT_SECRET',
+        )
+
+      const frankieAccessToken =
+        getBearerToken(request)
 
       if (!frankieAccessToken) {
         return jsonNoStore(
-          { error: 'Not authenticated' },
-          { status: 401 },
+          {
+            error:
+              'Not authenticated',
+          },
+          {
+            status: 401,
+          },
         )
       }
 
-      const supabaseAdmin = createClient(
-        supabaseUrl,
-        serviceRoleKey,
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+      const supabaseAdmin =
+        createClient(
+          supabaseUrl,
+          serviceRoleKey,
+          {
+            auth: {
+              persistSession: false,
+              autoRefreshToken:
+                false,
+            },
           },
-        },
-      )
+        )
 
       const {
         data: { user },
@@ -353,10 +469,18 @@ export default {
           frankieAccessToken,
         )
 
-      if (userError || !user) {
+      if (
+        userError ||
+        !user
+      ) {
         return jsonNoStore(
-          { error: 'Invalid session' },
-          { status: 401 },
+          {
+            error:
+              'Invalid session',
+          },
+          {
+            status: 401,
+          },
         )
       }
 
@@ -365,19 +489,32 @@ export default {
         error: connectionError,
       } =
         await supabaseAdmin
-          .from('google_connections')
+          .from(
+            'google_connections',
+          )
           .select(
             'access_token, refresh_token, expires_at, scope',
           )
-          .eq('owner_id', user.id)
-          .eq('provider', 'google')
+          .eq(
+            'owner_id',
+            user.id,
+          )
+          .eq(
+            'provider',
+            'google',
+          )
           .maybeSingle()
 
-      if (connectionError || !connection) {
+      if (
+        connectionError ||
+        !connection
+      ) {
         return jsonNoStore({
           connected: false,
-          needsCalendarPermission: false,
-          calendarApiEnabled: null,
+          needsCalendarPermission:
+            false,
+          calendarApiEnabled:
+            null,
           calendars: [],
           events: [],
           eventColors: [],
@@ -389,6 +526,7 @@ export default {
 
       let googleAccessToken =
         googleConnection.access_token
+
       let savedScope =
         googleConnection.scope
 
@@ -402,7 +540,8 @@ export default {
       if (
         !expiresAt ||
         expiresAt <
-          Date.now() + 60_000
+          Date.now() +
+            60_000
       ) {
         const refreshed =
           await refreshGoogleAccessToken(
@@ -411,37 +550,63 @@ export default {
             googleClientSecret,
           )
 
-        googleAccessToken = refreshed.accessToken
+        googleAccessToken =
+          refreshed.accessToken
 
-        if (refreshed.scope) {
-          savedScope = refreshed.scope
+        if (
+          refreshed.scope
+        ) {
+          savedScope =
+            refreshed.scope
         }
 
         const updatePayload: Record<
           string,
           string
         > = {
-          access_token: refreshed.accessToken,
-          expires_at: refreshed.expiresAt,
-          updated_at: new Date().toISOString(),
+          access_token:
+            refreshed.accessToken,
+          expires_at:
+            refreshed.expiresAt,
+          updated_at:
+            new Date().toISOString(),
         }
 
-        if (refreshed.scope) {
-          updatePayload.scope = refreshed.scope
+        if (
+          refreshed.scope
+        ) {
+          updatePayload.scope =
+            refreshed.scope
         }
 
         await supabaseAdmin
-          .from('google_connections')
-          .update(updatePayload)
-          .eq('owner_id', user.id)
-          .eq('provider', 'google')
+          .from(
+            'google_connections',
+          )
+          .update(
+            updatePayload,
+          )
+          .eq(
+            'owner_id',
+            user.id,
+          )
+          .eq(
+            'provider',
+            'google',
+          )
       }
 
-      if (!hasRequiredCalendarScopes(savedScope)) {
+      if (
+        !hasRequiredCalendarScopes(
+          savedScope,
+        )
+      ) {
         return jsonNoStore({
           connected: true,
-          needsCalendarPermission: true,
-          calendarApiEnabled: null,
+          needsCalendarPermission:
+            true,
+          calendarApiEnabled:
+            null,
           calendars: [],
           events: [],
           eventColors: [],
@@ -451,8 +616,10 @@ export default {
       }
 
       const googleHeaders = {
-        Authorization: `Bearer ${googleAccessToken}`,
-        'Cache-Control': 'no-cache',
+        Authorization:
+          `Bearer ${googleAccessToken}`,
+        'Cache-Control':
+          'no-cache',
       }
 
       const [
@@ -462,15 +629,19 @@ export default {
         fetch(
           'https://www.googleapis.com/calendar/v3/users/me/calendarList',
           {
-            cache: 'no-store',
-            headers: googleHeaders,
+            cache:
+              'no-store',
+            headers:
+              googleHeaders,
           },
         ),
         fetch(
           'https://www.googleapis.com/calendar/v3/colors',
           {
-            cache: 'no-store',
-            headers: googleHeaders,
+            cache:
+              'no-store',
+            headers:
+              googleHeaders,
           },
         ),
       ])
@@ -480,9 +651,12 @@ export default {
           GoogleCalendarListResponse
 
       const colorsData =
-        (await colorsResponse.json()) as GoogleColorsResponse
+        (await colorsResponse.json()) as
+          GoogleColorsResponse
 
-      if (!calendarListResponse.ok) {
+      if (
+        !calendarListResponse.ok
+      ) {
         const apiDisabled =
           isCalendarApiDisabled(
             calendarListData.error,
@@ -490,35 +664,49 @@ export default {
 
         return jsonNoStore({
           connected: true,
-          needsCalendarPermission: false,
+          needsCalendarPermission:
+            false,
           calendarApiEnabled:
-            apiDisabled ? false : null,
+            apiDisabled
+              ? false
+              : null,
           calendars: [],
           events: [],
           eventColors: [],
           error:
             apiDisabled
               ? 'Google Calendar permission is granted, but the Google Calendar API is not enabled for this Google Cloud project.'
-              : calendarListData.error?.message ??
+              : calendarListData
+                    .error
+                    ?.message ??
                 'Frankie could not access Google Calendar.',
         })
       }
 
       const calendars =
-        (calendarListData.items ?? [])
+        (
+          calendarListData.items ??
+          []
+        )
           .filter(
             (calendar) =>
               calendar.id &&
               calendar.summary,
           )
           .map(
-            (calendar): NormalizedCalendar => ({
-              id: calendar.id!,
-              name: calendar.summary!,
+            (
+              calendar,
+            ): NormalizedCalendar => ({
+              id:
+                calendar.id!,
+              name:
+                calendar.summary!,
               primary:
-                calendar.primary ?? false,
+                calendar.primary ??
+                false,
               accessRole:
-                calendar.accessRole ?? null,
+                calendar.accessRole ??
+                null,
               color:
                 calendar.backgroundColor ??
                 null,
@@ -526,35 +714,48 @@ export default {
                 calendar.foregroundColor ??
                 null,
               selected:
-                calendar.selected ?? true,
+                calendar.selected ??
+                true,
               hidden:
-                calendar.hidden ?? false,
+                calendar.hidden ??
+                false,
             }),
           )
 
       const eventColors =
-        new Map<string, EventColor>()
+        new Map<
+          string,
+          EventColor
+        >()
 
-      Object.entries(
-        colorsData.event ?? {},
-      ).forEach(
-        ([
-          id,
-          color,
-        ]) => {
-          if (
-            color.background &&
-            color.foreground
-          ) {
-            eventColors.set(id, {
-              background:
-                color.background,
-              foreground:
-                color.foreground,
-            })
-          }
-        },
-      )
+      if (
+        colorsResponse.ok
+      ) {
+        Object.entries(
+          colorsData.event ??
+            {},
+        ).forEach(
+          ([
+            id,
+            color,
+          ]) => {
+            if (
+              color.background &&
+              color.foreground
+            ) {
+              eventColors.set(
+                id,
+                {
+                  background:
+                    color.background,
+                  foreground:
+                    color.foreground,
+                },
+              )
+            }
+          },
+        )
+      }
 
       const primaryCalendar =
         calendars.find(
@@ -564,29 +765,30 @@ export default {
         calendars[0] ??
         null
 
-      const now = new Date()
+      const currentYear =
+        new Date().getFullYear()
 
-      const rangeStart = new Date(now)
-      rangeStart.setDate(
-        rangeStart.getDate() - 31,
-      )
-      rangeStart.setHours(
-        0,
-        0,
-        0,
-        0,
-      )
+      const rangeStart =
+        new Date(
+          currentYear - 1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+        )
 
-      const rangeEnd = new Date(now)
-      rangeEnd.setDate(
-        rangeEnd.getDate() + 93,
-      )
-      rangeEnd.setHours(
-        23,
-        59,
-        59,
-        999,
-      )
+      const rangeEnd =
+        new Date(
+          currentYear + 3,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+        )
 
       const calendarsToLoad =
         calendars.filter(
@@ -616,24 +818,32 @@ export default {
           )
           .sort(
             (a, b) =>
-              (a.start ?? '').localeCompare(
+              (
+                a.start ?? ''
+              ).localeCompare(
                 b.start ?? '',
               ),
           )
 
       const calendarErrors =
         eventResults
-          .map((result) => result.error)
+          .map(
+            (result) =>
+              result.error,
+          )
           .filter(Boolean)
 
       return jsonNoStore({
         connected: true,
-        needsCalendarPermission: false,
-        calendarApiEnabled: true,
+        needsCalendarPermission:
+          false,
+        calendarApiEnabled:
+          true,
         primaryCalendar,
         calendars,
         events,
-        eventCount: events.length,
+        eventCount:
+          events.length,
         eventColors:
           Array.from(
             eventColors.entries(),
@@ -660,8 +870,10 @@ export default {
       return jsonNoStore(
         {
           connected: true,
-          needsCalendarPermission: false,
-          calendarApiEnabled: null,
+          needsCalendarPermission:
+            false,
+          calendarApiEnabled:
+            null,
           calendars: [],
           events: [],
           eventColors: [],
