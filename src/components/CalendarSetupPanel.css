@@ -133,12 +133,22 @@
   background: var(--surface-2);
 }
 
+/*
+ * Google includes a very pale event color (#e1e1e1).
+ * A transparent swatch border caused that color to disappear
+ * visually against Frankie's light Calendar Setup surface.
+ *
+ * Every swatch now receives a subtle visible edge so ALL
+ * Google Calendar colors remain visible without changing the
+ * actual color assigned to the event.
+ */
 .calendar-color-swatch {
   width: 32px;
   height: 32px;
   align-self: end;
-  border: 2px solid transparent;
+  border: 2px solid rgba(72, 67, 62, .28);
   border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
   cursor: pointer;
   font-size: .7rem;
   font-weight: 800;
@@ -322,22 +332,6 @@
   opacity: .55;
 }
 
-@media (max-width: 760px) {
-  .calendar-color-rule-row {
-    grid-template-columns: 34px 1fr;
-  }
-
-  .calendar-color-rule-row label:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .calendar-holiday-options,
-  .calendar-default-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-
 .calendar-holiday-groups {
   display: grid;
   gap: 14px;
@@ -389,6 +383,19 @@
 }
 
 @media (max-width: 760px) {
+  .calendar-color-rule-row {
+    grid-template-columns: 34px 1fr;
+  }
+
+  .calendar-color-rule-row label:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .calendar-holiday-options,
+  .calendar-default-grid {
+    grid-template-columns: 1fr;
+  }
+
   .calendar-holiday-group .calendar-holiday-options {
     grid-template-columns: 1fr;
   }

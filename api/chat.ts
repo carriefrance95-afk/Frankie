@@ -65,9 +65,7 @@ type OpenAIResponseBody = {
 }
 
 type BusinessKitToolArgs = {
-  action:
-    | 'structure'
-    | 'read_range'
+  action: 'structure' | 'read_range'
   range: string | null
 }
 
@@ -76,19 +74,12 @@ type GarageSaleToolArgs = {
 }
 
 type TaskToolArgs = {
-  action:
-    | 'list'
-    | 'create'
-    | 'update'
-    | 'complete'
+  action: 'list' | 'create' | 'update' | 'complete'
   taskId: string | null
   businessId: string | null
   title: string | null
   description: string | null
-  bucket:
-    | 'todo'
-    | 'parking_lot'
-    | null
+  bucket: 'todo' | 'parking_lot' | null
   status:
     | 'open'
     | 'in_progress'
@@ -110,11 +101,7 @@ type TaskToolArgs = {
   sourceName: string | null
   sourceRecordType: string | null
   sourceRecordId: string | null
-  sourceContext:
-    Record<
-      string,
-      never
-    > | null
+  sourceContext: Record<string, never> | null
 }
 
 type CalendarToolArgs = {
@@ -133,12 +120,8 @@ type CalendarToolArgs = {
     | 'monthly'
     | 'yearly'
     | null
-  recurrenceDays:
-    | string[]
-    | null
-  recurrenceEndDate:
-    | string
-    | null
+  recurrenceDays: string[] | null
+  recurrenceEndDate: string | null
 }
 
 const FRANKIE_INSTRUCTIONS = `
@@ -449,8 +432,7 @@ IMPORTANT TASK ARCHITECTURE
 - They are different views of the same underlying task records.
 
 GOOGLE CALENDAR — CREATE ENABLED
-Frankie can now create real events on the owner's connected primary Google
-Calendar.
+Frankie can create real events on the owner's connected primary Google Calendar.
 
 Frankie may currently:
 - create one-time calendar events
@@ -462,6 +444,16 @@ Frankie may NOT yet:
 - delete an existing calendar event
 - reschedule an existing calendar event
 - cancel an existing recurring series
+
+CALENDAR CAPABILITY RULE
+- Never tell the owner that Frankie lacks calendar write access when
+  manage_calendar is available.
+- If the owner's request is a clear instruction to create or schedule an event,
+  use manage_calendar.
+- Do not offer a manual copy/paste calendar workaround when the calendar tool is
+  available.
+- Do not convert a clear calendar request into a To-Do unless the owner actually
+  asks for a To-Do.
 
 CALENDAR CREATION RULES
 - When the owner clearly asks Frankie to put, add, schedule, create, or place an
@@ -544,32 +536,22 @@ const BUSINESS_KIT_TOOL = {
     properties: {
       action: {
         type: 'string',
-        enum: [
-          'structure',
-          'read_range',
-        ],
+        enum: ['structure', 'read_range'],
       },
       range: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'A1 range for read_range, for example Inventory!A1:H50. Use null for structure.',
       },
     },
-    required: [
-      'action',
-      'range',
-    ],
+    required: ['action', 'range'],
   },
   strict: true,
 } as const
 
 const GARAGE_SALE_WRITE_TOOL = {
   type: 'function',
-  name:
-    'mark_inventory_for_garage_sale',
+  name: 'mark_inventory_for_garage_sale',
   description:
     'Safely mark one verified Inventory SKU for Garage Sale. This tool can change only Inventory Listing Status to Garage Sale. Use only when the owner clearly asks to mark a specific SKU for the Garage Sale.',
   parameters: {
@@ -582,9 +564,7 @@ const GARAGE_SALE_WRITE_TOOL = {
           'Exact Inventory SKU requested by the owner.',
       },
     },
-    required: [
-      'sku',
-    ],
+    required: ['sku'],
   },
   strict: true,
 } as const
@@ -609,44 +589,29 @@ const TASK_TOOL = {
       },
 
       taskId: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Existing task ID for update or complete. Null for list/create.',
       },
 
       businessId: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Business/workspace UUID. Null means Master View.',
       },
 
       title: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Task title. Required when creating a task.',
       },
 
       description: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       bucket: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         enum: [
           'todo',
           'parking_lot',
@@ -655,10 +620,7 @@ const TASK_TOOL = {
       },
 
       status: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         enum: [
           'open',
           'in_progress',
@@ -670,10 +632,7 @@ const TASK_TOOL = {
       },
 
       priority: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         enum: [
           'low',
           'normal',
@@ -684,72 +643,45 @@ const TASK_TOOL = {
       },
 
       dueDate: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Due date in YYYY-MM-DD format or null.',
       },
 
       dueTime: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Due time in HH:MM 24-hour format or null.',
       },
 
       project: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       assignedTo: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'User UUID for assignment. Usually null until team assignment is enabled.',
       },
 
       sourceType: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       sourceName: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       sourceRecordType: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       sourceRecordId: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       sourceContext: {
-        type: [
-          'object',
-          'null',
-        ],
+        type: ['object', 'null'],
         properties: {},
         additionalProperties: false,
       },
@@ -790,9 +722,7 @@ const CALENDAR_TOOL = {
     properties: {
       action: {
         type: 'string',
-        enum: [
-          'create',
-        ],
+        enum: ['create'],
       },
 
       title: {
@@ -802,17 +732,11 @@ const CALENDAR_TOOL = {
       },
 
       description: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       location: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
       },
 
       startDate: {
@@ -822,19 +746,13 @@ const CALENDAR_TOOL = {
       },
 
       startTime: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Start time in HH:MM 24-hour format. Null for an all-day event.',
       },
 
       endTime: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'End time in HH:MM 24-hour format. May be null when Calendar Setup default duration should be used.',
       },
@@ -844,19 +762,13 @@ const CALENDAR_TOOL = {
       },
 
       colorMeaning: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Semantic event category such as Bartending, Birthday, Holiday, Appointment, Personal, or a business name. Never pass a Google color ID.',
       },
 
       recurrenceFrequency: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         enum: [
           'daily',
           'weekly',
@@ -867,10 +779,7 @@ const CALENDAR_TOOL = {
       },
 
       recurrenceDays: {
-        type: [
-          'array',
-          'null',
-        ],
+        type: ['array', 'null'],
         items: {
           type: 'string',
           enum: [
@@ -888,10 +797,7 @@ const CALENDAR_TOOL = {
       },
 
       recurrenceEndDate: {
-        type: [
-          'string',
-          'null',
-        ],
+        type: ['string', 'null'],
         description:
           'Last recurrence date in YYYY-MM-DD format, or null for no specified end.',
       },
@@ -920,9 +826,7 @@ function getBearerToken(
   request: Request,
 ): string | null {
   const authorization =
-    request.headers.get(
-      'authorization',
-    )
+    request.headers.get('authorization')
 
   if (
     !authorization?.startsWith(
@@ -934,9 +838,7 @@ function getBearerToken(
 
   return (
     authorization
-      .slice(
-        'Bearer '.length,
-      )
+      .slice('Bearer '.length)
       .trim() || null
   )
 }
@@ -944,33 +846,18 @@ function getBearerToken(
 function extractOutputText(
   data: OpenAIResponseBody,
 ): string {
-  if (
-    !Array.isArray(
-      data.output,
-    )
-  ) {
+  if (!Array.isArray(data.output)) {
     return ''
   }
 
-  const textParts:
-    string[] = []
+  const textParts: string[] = []
 
-  for (
-    const item of
-    data.output
-  ) {
-    if (
-      !Array.isArray(
-        item.content,
-      )
-    ) {
+  for (const item of data.output) {
+    if (!Array.isArray(item.content)) {
       continue
     }
 
-    for (
-      const contentItem of
-      item.content
-    ) {
+    for (const contentItem of item.content) {
       if (
         contentItem.type ===
           'output_text' &&
@@ -992,18 +879,13 @@ function extractOutputText(
 function getFunctionCalls(
   data: OpenAIResponseBody,
 ): OpenAIOutputItem[] {
-  if (
-    !Array.isArray(
-      data.output,
-    )
-  ) {
+  if (!Array.isArray(data.output)) {
     return []
   }
 
   return data.output.filter(
     (item) =>
-      item.type ===
-        'function_call' &&
+      item.type === 'function_call' &&
       (
         item.name ===
           'inspect_reseller_os' ||
@@ -1019,32 +901,96 @@ function getFunctionCalls(
   )
 }
 
+/*
+ * Only explicit calendar WRITE instructions should force
+ * manage_calendar.
+ *
+ * This intentionally does NOT trigger for ordinary questions
+ * like:
+ * - "What's on my calendar?"
+ * - "Why is my calendar color wrong?"
+ * - "Can you see my calendar?"
+ *
+ * It DOES trigger for instructions like:
+ * - "Add a dentist appointment to my calendar..."
+ * - "Schedule Frankie Calendar Test every Thursday..."
+ * - "Put this meeting on my calendar..."
+ * - "Create a calendar event..."
+ */
+function isExplicitCalendarWriteRequest(
+  message: string,
+): boolean {
+  const normalized = message
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalized) {
+    return false
+  }
+
+  const mentionsCalendar =
+    /\b(calendar|schedule)\b/.test(
+      normalized,
+    )
+
+  const explicitWriteVerb =
+    /\b(add|schedule|create|put|place|book|block|set up|setup)\b/.test(
+      normalized,
+    )
+
+  const eventLanguage =
+    /\b(event|appointment|meeting|shift|birthday|commitment|reminder|call|interview|class|session)\b/.test(
+      normalized,
+    )
+
+  const recurrenceLanguage =
+    /\b(every|each|weekly|daily|monthly|yearly|recurring|repeat|repeating)\b/.test(
+      normalized,
+    )
+
+  const directCalendarPhrase =
+    /\b(add|put|place|create)\b.{0,45}\b(on|to|in)\b.{0,15}\b(my|the)?\s*calendar\b/.test(
+      normalized,
+    )
+
+  const schedulePhrase =
+    /\bschedule\b.{0,80}\b(at|on|for|every|each|starting|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/.test(
+      normalized,
+    )
+
+  return Boolean(
+    directCalendarPhrase ||
+    schedulePhrase ||
+    (
+      mentionsCalendar &&
+      explicitWriteVerb &&
+      (
+        eventLanguage ||
+        recurrenceLanguage
+      )
+    ),
+  )
+}
+
 async function callOpenAI(
   apiKey: string,
-  payload:
-    Record<
-      string,
-      unknown
-    >,
+  payload: Record<string, unknown>,
 ): Promise<OpenAIResponseBody> {
-  const response =
-    await fetch(
-      'https://api.openai.com/v1/responses',
-      {
-        method:
-          'POST',
-        headers: {
-          Authorization:
-            `Bearer ${apiKey}`,
-          'Content-Type':
-            'application/json',
-        },
-        body:
-          JSON.stringify(
-            payload,
-          ),
+  const response = await fetch(
+    'https://api.openai.com/v1/responses',
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${apiKey}`,
+        'Content-Type':
+          'application/json',
       },
-    )
+      body:
+        JSON.stringify(payload),
+    },
+  )
 
   const data =
     (await response.json()) as
@@ -1058,8 +1004,7 @@ async function callOpenAI(
     )
 
     throw new Error(
-      data.error
-        ?.message ||
+      data.error?.message ||
         `OpenAI request failed with ${response.status}`,
     )
   }
@@ -1070,39 +1015,33 @@ async function callOpenAI(
 async function runBusinessKitTool(
   request: Request,
   sessionToken: string,
-  args:
-    BusinessKitToolArgs,
+  args: BusinessKitToolArgs,
 ): Promise<unknown> {
-  const endpoint =
-    new URL(
-      '/api/business-kit',
-      request.url,
-    )
+  const endpoint = new URL(
+    '/api/business-kit',
+    request.url,
+  )
 
-  const response =
-    await fetch(
-      endpoint,
-      {
-        method:
-          'POST',
-        headers: {
-          Authorization:
-            `Bearer ${sessionToken}`,
-          'Content-Type':
-            'application/json',
-        },
-        body:
-          JSON.stringify({
-            action:
-              args.action,
-            range:
-              args.action ===
-              'read_range'
-                ? args.range
-                : null,
-          }),
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
       },
-    )
+      body: JSON.stringify({
+        action: args.action,
+        range:
+          args.action ===
+          'read_range'
+            ? args.range
+            : null,
+      }),
+    },
+  )
 
   const text =
     await response.text()
@@ -1110,8 +1049,7 @@ async function runBusinessKitTool(
   let data: unknown
 
   try {
-    data =
-      JSON.parse(text)
+    data = JSON.parse(text)
   } catch {
     data = {
       error:
@@ -1123,8 +1061,7 @@ async function runBusinessKitTool(
   if (!response.ok) {
     return {
       ok: false,
-      status:
-        response.status,
+      status: response.status,
       result: data,
     }
   }
@@ -1135,36 +1072,30 @@ async function runBusinessKitTool(
 async function runGarageSaleWriteTool(
   request: Request,
   sessionToken: string,
-  args:
-    GarageSaleToolArgs,
+  args: GarageSaleToolArgs,
 ): Promise<unknown> {
-  const endpoint =
-    new URL(
-      '/api/business-kit',
-      request.url,
-    )
+  const endpoint = new URL(
+    '/api/business-kit',
+    request.url,
+  )
 
-  const response =
-    await fetch(
-      endpoint,
-      {
-        method:
-          'POST',
-        headers: {
-          Authorization:
-            `Bearer ${sessionToken}`,
-          'Content-Type':
-            'application/json',
-        },
-        body:
-          JSON.stringify({
-            action:
-              'mark_garage_sale',
-            sku:
-              args.sku,
-          }),
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
       },
-    )
+      body: JSON.stringify({
+        action:
+          'mark_garage_sale',
+        sku: args.sku,
+      }),
+    },
+  )
 
   const text =
     await response.text()
@@ -1172,8 +1103,7 @@ async function runGarageSaleWriteTool(
   let data: unknown
 
   try {
-    data =
-      JSON.parse(text)
+    data = JSON.parse(text)
   } catch {
     data = {
       error:
@@ -1185,8 +1115,7 @@ async function runGarageSaleWriteTool(
   if (!response.ok) {
     return {
       ok: false,
-      status:
-        response.status,
+      status: response.status,
       result: data,
     }
   }
@@ -1197,72 +1126,44 @@ async function runGarageSaleWriteTool(
 async function runTaskTool(
   request: Request,
   sessionToken: string,
-  args:
-    TaskToolArgs,
+  args: TaskToolArgs,
 ): Promise<unknown> {
-  const endpoint =
-    new URL(
-      '/api/tasks',
-      request.url,
-    )
+  const endpoint = new URL(
+    '/api/tasks',
+    request.url,
+  )
 
-  const body:
-    Record<
-      string,
-      unknown
-    > = {
-    action:
-      args.action,
+  const body: Record<string, unknown> = {
+    action: args.action,
+  }
+
+  if (args.taskId !== null) {
+    body.taskId = args.taskId
   }
 
   if (
-    args.taskId !==
-    null
-  ) {
-    body.taskId =
-      args.taskId
-  }
-
-  if (
-    args.action ===
-      'create' ||
-    args.action ===
-      'update'
+    args.action === 'create' ||
+    args.action === 'update'
   ) {
     body.businessId =
       args.businessId
 
-    if (
-      args.title !==
-      null
-    ) {
-      body.title =
-        args.title
+    if (args.title !== null) {
+      body.title = args.title
     }
 
     body.description =
       args.description
 
-    if (
-      args.bucket !==
-      null
-    ) {
-      body.bucket =
-        args.bucket
+    if (args.bucket !== null) {
+      body.bucket = args.bucket
     }
 
-    if (
-      args.status !==
-      null
-    ) {
-      body.status =
-        args.status
+    if (args.status !== null) {
+      body.status = args.status
     }
 
-    if (
-      args.priority !==
-      null
-    ) {
+    if (args.priority !== null) {
       body.priority =
         args.priority
     }
@@ -1296,33 +1197,27 @@ async function runTaskTool(
   }
 
   if (
-    args.action ===
-      'list' &&
-    args.businessId !==
-      null
+    args.action === 'list' &&
+    args.businessId !== null
   ) {
     body.businessId =
       args.businessId
   }
 
-  const response =
-    await fetch(
-      endpoint,
-      {
-        method:
-          'POST',
-        headers: {
-          Authorization:
-            `Bearer ${sessionToken}`,
-          'Content-Type':
-            'application/json',
-        },
-        body:
-          JSON.stringify(
-            body,
-          ),
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
       },
-    )
+      body:
+        JSON.stringify(body),
+    },
+  )
 
   const text =
     await response.text()
@@ -1330,8 +1225,7 @@ async function runTaskTool(
   let data: unknown
 
   try {
-    data =
-      JSON.parse(text)
+    data = JSON.parse(text)
   } catch {
     data = {
       error:
@@ -1345,8 +1239,7 @@ async function runTaskTool(
       ok: false,
       status:
         response.status,
-      result:
-        data,
+      result: data,
     }
   }
 
@@ -1356,33 +1249,27 @@ async function runTaskTool(
 async function runCalendarTool(
   request: Request,
   sessionToken: string,
-  args:
-    CalendarToolArgs,
+  args: CalendarToolArgs,
 ): Promise<unknown> {
-  const endpoint =
-    new URL(
-      '/api/google/events',
-      request.url,
-    )
+  const endpoint = new URL(
+    '/api/google/events',
+    request.url,
+  )
 
-  const response =
-    await fetch(
-      endpoint,
-      {
-        method:
-          'POST',
-        headers: {
-          Authorization:
-            `Bearer ${sessionToken}`,
-          'Content-Type':
-            'application/json',
-        },
-        body:
-          JSON.stringify(
-            args,
-          ),
+  const response = await fetch(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:
+          `Bearer ${sessionToken}`,
+        'Content-Type':
+          'application/json',
       },
-    )
+      body:
+        JSON.stringify(args),
+    },
+  )
 
   const text =
     await response.text()
@@ -1390,8 +1277,7 @@ async function runCalendarTool(
   let data: unknown
 
   try {
-    data =
-      JSON.parse(text)
+    data = JSON.parse(text)
   } catch {
     data = {
       ok: false,
@@ -1408,8 +1294,7 @@ async function runCalendarTool(
       verified: false,
       status:
         response.status,
-      result:
-        data,
+      result: data,
     }
   }
 
@@ -1420,10 +1305,7 @@ export default {
   async fetch(
     request: Request,
   ): Promise<Response> {
-    if (
-      request.method !==
-      'POST'
-    ) {
+    if (request.method !== 'POST') {
       return Response.json(
         {
           error:
@@ -1436,8 +1318,7 @@ export default {
     }
 
     const apiKey =
-      process.env
-        .OPENAI_API_KEY
+      process.env.OPENAI_API_KEY
 
     if (!apiKey) {
       console.error(
@@ -1456,9 +1337,7 @@ export default {
     }
 
     const sessionToken =
-      getBearerToken(
-        request,
-      )
+      getBearerToken(request)
 
     if (!sessionToken) {
       return Response.json(
@@ -1497,13 +1376,11 @@ export default {
               'string' &&
             message.content
               .trim()
-              .length >
-              0,
+              .length > 0,
         )
 
       if (
-        validMessages.length ===
-        0
+        validMessages.length === 0
       ) {
         return Response.json(
           {
@@ -1517,22 +1394,16 @@ export default {
       }
 
       const workspaceContext =
-        body.workspaceContext ??
-        {
+        body.workspaceContext ?? {
           id: 'master',
-          name:
-            'Master View',
-          type:
-            'master' as const,
+          name: 'Master View',
+          type: 'master' as const,
         }
 
       const ownerContext =
-        body.ownerContext ??
-        {
-          preferredName:
-            null,
-          currentPriority:
-            null,
+        body.ownerContext ?? {
+          preferredName: null,
+          currentPriority: null,
           businesses: [],
           memories: [],
         }
@@ -1546,10 +1417,7 @@ export default {
           ? body.currentLocalDate
           : new Date()
               .toISOString()
-              .slice(
-                0,
-                10,
-              )
+              .slice(0, 10)
 
       const contextInstructions = `
 CURRENT OWNER CONTEXT
@@ -1580,6 +1448,11 @@ For calendar creation:
   date on or after CURRENT DATE unless the owner explicitly gives another start.
 - Calendar event colors are semantic. Pass a category such as Bartending or
   Birthday, never a Google color ID.
+- The calendar tool is live. Never tell the owner that calendar write access is
+  unavailable when manage_calendar is present.
+- An explicit instruction to add, create, put, place, book, block, or schedule an
+  event on the calendar must use manage_calendar rather than offering a manual
+  workaround.
 
 The owner has already completed Frankie's initial backend setup. Never act as
 though you are meeting them for the first time, and never ask them to repeat
@@ -1589,8 +1462,7 @@ information already present above.
       const input =
         validMessages.map(
           (message) => ({
-            role:
-              message.role,
+            role: message.role,
             content:
               message.content.trim(),
           }),
@@ -1603,6 +1475,30 @@ information already present above.
         CALENDAR_TOOL,
       ]
 
+      const latestUserMessage =
+        [...validMessages]
+          .reverse()
+          .find(
+            (message) =>
+              message.role ===
+              'user',
+          )
+          ?.content ?? ''
+
+      const forceCalendarTool =
+        isExplicitCalendarWriteRequest(
+          latestUserMessage,
+        )
+
+      const initialToolChoice =
+        forceCalendarTool
+          ? {
+              type: 'function',
+              name:
+                'manage_calendar',
+            }
+          : 'auto'
+
       let responseData =
         await callOpenAI(
           apiKey,
@@ -1611,8 +1507,7 @@ information already present above.
               'gpt-5-mini',
 
             reasoning: {
-              effort:
-                'minimal',
+              effort: 'minimal',
             },
 
             instructions: `
@@ -1626,17 +1521,14 @@ ${contextInstructions}
             tools,
 
             tool_choice:
-              'auto',
+              initialToolChoice,
           },
         )
 
       for (
-        let toolRound =
-          0;
-        toolRound <
-        7;
-        toolRound +=
-          1
+        let toolRound = 0;
+        toolRound < 7;
+        toolRound += 1
       ) {
         const functionCalls =
           getFunctionCalls(
@@ -1644,36 +1536,29 @@ ${contextInstructions}
           )
 
         if (
-          functionCalls.length ===
-          0
+          functionCalls.length === 0
         ) {
           break
         }
 
-        if (
-          !responseData.id
-        ) {
+        if (!responseData.id) {
           throw new Error(
             'OpenAI tool response is missing an id.',
           )
         }
 
-        const toolOutputs:
-          Array<{
-            type:
-              'function_call_output'
-            call_id:
-              string
-            output:
-              string
-          }> = []
+        const toolOutputs: Array<{
+          type:
+            'function_call_output'
+          call_id: string
+          output: string
+        }> = []
 
         for (
           const functionCall of
           functionCalls
         ) {
-          let result:
-            unknown
+          let result: unknown
 
           if (
             functionCall.name ===
@@ -1719,38 +1604,24 @@ ${contextInstructions}
               args = {
                 action:
                   'list',
-                taskId:
-                  null,
-                businessId:
-                  null,
-                title:
-                  null,
-                description:
-                  null,
-                bucket:
-                  null,
-                status:
-                  null,
-                priority:
-                  null,
-                dueDate:
-                  null,
-                dueTime:
-                  null,
-                project:
-                  null,
-                assignedTo:
-                  null,
-                sourceType:
-                  null,
-                sourceName:
-                  null,
+                taskId: null,
+                businessId: null,
+                title: null,
+                description: null,
+                bucket: null,
+                status: null,
+                priority: null,
+                dueDate: null,
+                dueTime: null,
+                project: null,
+                assignedTo: null,
+                sourceType: null,
+                sourceName: null,
                 sourceRecordType:
                   null,
                 sourceRecordId:
                   null,
-                sourceContext:
-                  null,
+                sourceContext: null,
               }
             }
 
@@ -1778,22 +1649,14 @@ ${contextInstructions}
               args = {
                 action:
                   'create',
-                title:
-                  '',
-                description:
-                  null,
-                location:
-                  null,
-                startDate:
-                  '',
-                startTime:
-                  null,
-                endTime:
-                  null,
-                allDay:
-                  false,
-                colorMeaning:
-                  null,
+                title: '',
+                description: null,
+                location: null,
+                startDate: '',
+                startTime: null,
+                endTime: null,
+                allDay: false,
+                colorMeaning: null,
                 recurrenceFrequency:
                   null,
                 recurrenceDays:
@@ -1824,8 +1687,7 @@ ${contextInstructions}
               args = {
                 action:
                   'structure',
-                range:
-                  null,
+                range: null,
               }
             }
 
@@ -1877,6 +1739,12 @@ ${contextInstructions}
 
               tools,
 
+              /*
+               * Once the required calendar tool has run, return
+               * control to normal auto routing so Frankie can
+               * produce her confirmation instead of being forced
+               * into another calendar call.
+               */
               tool_choice:
                 'auto',
             },
