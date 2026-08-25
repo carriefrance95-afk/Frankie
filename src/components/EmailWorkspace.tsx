@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { supabase } from '../lib/supabase'
+import './EmailMessageDetail.css'
 
 type EmailAccount = {
   id: string
