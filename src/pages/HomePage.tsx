@@ -5,6 +5,7 @@ import frankieMain from '../assets/frankie/frankie-main.png'
 import frankieConversation from '../assets/frankie/frankie-conversation.png'
 import { supabase } from '../lib/supabase'
 import CalendarWorkspace from '../components/CalendarWorkspace'
+import EmailWorkspace from '../components/EmailWorkspace'
 import EmailAccountsConnection from '../components/EmailAccountsConnection'
 import type {
   CalendarBusiness,
@@ -16,6 +17,7 @@ import './TaskWorkspace.css'
 import './TodayWorkspace.css'
 import './ConnectionsWorkspace.css'
 import '../components/CalendarWorkspace.css'
+import '../components/EmailWorkspace.css'
 
 type ChatMessage = {
   id: number
@@ -1208,6 +1210,7 @@ function HomePage() {
 
   const isTaskView = activeView === 'To-Do' || activeView === 'Parking Lot'
   const isTodayView = activeView === 'Today'
+  const isEmailView = activeView === 'Email'
   const isCalendarView = activeView === 'Calendar'
   const isConnectionsView = activeView === 'Connections'
   const taskViewBucket: TaskBucket =
@@ -1227,11 +1230,13 @@ function HomePage() {
     ? activeView
     : isTodayView
       ? 'Today'
-      : isCalendarView
-        ? 'Calendar'
-        : isConnectionsView
-          ? 'Connections'
-          : 'Talk to Frankie'
+      : isEmailView
+        ? 'Email'
+        : isCalendarView
+          ? 'Calendar'
+          : isConnectionsView
+            ? 'Connections'
+            : 'Talk to Frankie'
 
   return (
     <main className="frankie-home" data-workspace-theme={resolvedTheme}>
@@ -1712,6 +1717,8 @@ function HomePage() {
                 </button>
               </form>
             </section>
+          ) : isEmailView ? (
+            <EmailWorkspace />
           ) : isCalendarView ? (
             <CalendarWorkspace
               tasks={activeTasks.map(
