@@ -497,6 +497,56 @@ function findBodyByMimeType(
   return ''
 }
 
+function findRawHtmlBody(
+  part: GmailPart | undefined,
+): string {
+  if (!part) {
+    return ''
+  }
+
+  if (isAttachmentPart(part)) {
+    return ''
+  }
+
+  const mimeType =
+    part.mimeType
+      ?.trim()
+      .toLowerCase() ?? ''
+
+  if (
+    mimeType ===
+    'message/rfc822'
+  ) {
+    return ''
+  }
+
+  if (
+    mimeType ===
+      'text/html' &&
+    part.body?.data
+  ) {
+    return decodeMimeBody(
+      part,
+    )
+  }
+
+  for (
+    const child of
+    part.parts ?? []
+  ) {
+    const html =
+      findRawHtmlBody(
+        child,
+      )
+
+    if (html) {
+      return html
+    }
+  }
+
+  return ''
+}
+
 function getMessageBody(
   payload: GmailPart | undefined,
 ): string {
@@ -535,19 +585,19 @@ function getMessageBody(
     mimeType ===
     'multipart/alternative'
   ) {
-    const html =
+    const plain =
       findBodyByMimeType(
         payload,
-        'text/html',
+        'text/plain',
       )
 
-    if (html) {
-      return html
+    if (plain) {
+      return plain
     }
 
     return findBodyByMimeType(
       payload,
-      'text/plain',
+      'text/html',
     )
   }
 
@@ -1368,6 +1418,11 @@ export default {
 
                 body:
                   getMessageBody(
+                    message.payload,
+                  ),
+
+                htmlBody:
+                  findRawHtmlBody(
                     message.payload,
                   ),
 
