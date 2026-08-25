@@ -671,69 +671,6 @@ function getMessageBody(
   return ''
 }
 
-type MimeDiagnosticPart = {
-  path: string
-  partId: string | null
-  mimeType: string | null
-  filename: string | null
-  contentDisposition: string | null
-  contentTransferEncoding: string | null
-  bodySize: number
-  hasBodyData: boolean
-  attachmentIdPresent: boolean
-  childCount: number
-}
-
-function collectMimeDiagnostic(
-  part: GmailPart | undefined,
-  result: MimeDiagnosticPart[],
-  path = 'root',
-) {
-  if (!part) {
-    return
-  }
-
-  result.push({
-    path,
-    partId:
-      part.partId ?? null,
-    mimeType:
-      part.mimeType ?? null,
-    filename:
-      part.filename?.trim() || null,
-    contentDisposition:
-      getHeader(
-        part.headers,
-        'Content-Disposition',
-      ),
-    contentTransferEncoding:
-      getHeader(
-        part.headers,
-        'Content-Transfer-Encoding',
-      ),
-    bodySize:
-      part.body?.size ?? 0,
-    hasBodyData:
-      Boolean(part.body?.data),
-    attachmentIdPresent:
-      Boolean(
-        part.body?.attachmentId,
-      ),
-    childCount:
-      part.parts?.length ?? 0,
-  })
-
-  ;(part.parts ?? []).forEach(
-    (child, index) => {
-      collectMimeDiagnostic(
-        child,
-        result,
-        `${path}.${index}`,
-      )
-    },
-  )
-}
-
 function collectAttachments(
   part: GmailPart | undefined,
   result: Array<{
@@ -1361,13 +1298,6 @@ export default {
                 attachments,
               )
 
-              const mimeDiagnostic: MimeDiagnosticPart[] = []
-
-              collectMimeDiagnostic(
-                message.payload,
-                mimeDiagnostic,
-              )
-
               const labels =
                 message.labelIds ??
                 []
@@ -1459,8 +1389,6 @@ export default {
                 labels,
 
                 attachments,
-
-                mimeDiagnostic,
 
                 internetMessageId:
                   getHeader(

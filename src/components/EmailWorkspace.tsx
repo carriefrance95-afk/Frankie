@@ -29,19 +29,6 @@ type EmailMessage = {
   internetMessageId: string | null
 }
 
-type MimeDiagnosticPart = {
-  path: string
-  partId: string | null
-  mimeType: string | null
-  filename: string | null
-  contentDisposition: string | null
-  contentTransferEncoding: string | null
-  bodySize: number
-  hasBodyData: boolean
-  attachmentIdPresent: boolean
-  childCount: number
-}
-
 type DetailMessage = {
   id: string
   threadId: string
@@ -65,7 +52,6 @@ type DetailMessage = {
     size: number
     attachmentId: string | null
   }>
-  mimeDiagnostic: MimeDiagnosticPart[]
   internetMessageId: string | null
   inReplyTo: string | null
   references: string | null
@@ -137,7 +123,6 @@ function EmailWorkspace() {
     useState<DetailMessage[]>([])
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
-  const [diagnosticCopied, setDiagnosticCopied] = useState(false)
 
   const selectedAccount = useMemo(
     () =>
@@ -318,7 +303,6 @@ function EmailWorkspace() {
     setSelectedMessage(message)
     setDetailMessages([])
     setDetailError(null)
-    setDiagnosticCopied(false)
     setIsLoadingDetail(true)
 
     try {
@@ -361,46 +345,6 @@ function EmailWorkspace() {
       )
     } finally {
       setIsLoadingDetail(false)
-    }
-  }
-
-  const copyMimeDiagnostic = async () => {
-    if (!selectedMessage) return
-
-    const selectedDetail =
-      detailMessages.find(
-        (message) => message.id === selectedMessage.id,
-      ) ?? detailMessages[0]
-
-    if (!selectedDetail) return
-
-    const diagnostic = {
-      selectedMessageId: selectedMessage.id,
-      threadId: selectedDetail.threadId,
-      subject: selectedDetail.subject,
-      mimeDiagnostic: selectedDetail.mimeDiagnostic ?? [],
-    }
-
-    try {
-      await navigator.clipboard.writeText(
-        JSON.stringify(diagnostic, null, 2),
-      )
-
-      setDiagnosticCopied(true)
-
-      window.setTimeout(
-        () => setDiagnosticCopied(false),
-        1800,
-      )
-    } catch (copyError) {
-      console.error(
-        'Frankie MIME diagnostic copy error:',
-        copyError,
-      )
-
-      setDetailError(
-        'Could not copy the MIME diagnostic. Please try again.',
-      )
     }
   }
 
@@ -648,36 +592,14 @@ function EmailWorkspace() {
                 <h2>{selectedMessage.subject}</h2>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
+              <button
+                type="button"
+                className="email-detail-close"
+                onClick={() => setSelectedMessage(null)}
+                aria-label="Close email"
               >
-                {!isLoadingDetail &&
-                  !detailError &&
-                  detailMessages.length > 0 && (
-                    <button
-                      type="button"
-                      className="email-filter"
-                      onClick={() => void copyMimeDiagnostic()}
-                    >
-                      {diagnosticCopied
-                        ? 'Copied'
-                        : 'Copy MIME diagnostic'}
-                    </button>
-                  )}
-
-                <button
-                  type="button"
-                  className="email-detail-close"
-                  onClick={() => setSelectedMessage(null)}
-                  aria-label="Close email"
-                >
-                  ×
-                </button>
-              </div>
+                ×
+              </button>
             </div>
 
             {isLoadingDetail ? (
