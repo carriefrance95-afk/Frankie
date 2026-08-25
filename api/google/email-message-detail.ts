@@ -61,11 +61,6 @@ type GmailThreadResponse = {
   error?: unknown
 }
 
-type BodyCandidate = {
-  content: string
-  mimeType: 'text/plain' | 'text/html'
-}
-
 function getRequiredEnv(name: string): string {
   const value = process.env[name]
 
@@ -376,12 +371,32 @@ function cleanPlainText(value: string): string {
     .trim()
 }
 
-function collectBodyCandidates(
-  part: GmailPart | undefined,
-  result: BodyCandidate[],
-) {
-  if (!part) {
-    return
+function isAttachmentPart(part: GmailPart): boolean {
+  const filename =
+    part.filename?.trim() ?? ''
+
+  if (filename) {
+    return true
+  }
+
+  const disposition =
+    getHeader(
+      part.headers,
+      'Content-Disposition',
+    )
+      ?.trim()
+      .toLowerCase() ?? ''
+
+  return disposition.startsWith(
+    'attachment',
+  )
+}
+
+function getReadableLeafBody(
+  part: GmailPart,
+): string {
+  if (isAttachmentPart(part)) {
+    return ''
   }
 
   const mimeType =
@@ -390,35 +405,96 @@ function collectBodyCandidates(
       .toLowerCase() ?? ''
 
   if (
-    part.body?.data &&
-    (
-      mimeType === 'text/plain' ||
-      mimeType === 'text/html'
-    )
+    mimeType ===
+    'message/rfc822'
   ) {
-    const content =
-      decodeMimeBody(part)
+    return ''
+  }
 
-    if (content.trim()) {
-      result.push({
-        content,
-        mimeType:
-          mimeType as
-            | 'text/plain'
-            | 'text/html',
-      })
-    }
+  if (!part.body?.data) {
+    return ''
+  }
+
+  const decoded =
+    decodeMimeBody(part)
+
+  if (!decoded.trim()) {
+    return ''
+  }
+
+  if (
+    mimeType ===
+    'text/html'
+  ) {
+    return stripHtml(
+      decoded,
+    )
+  }
+
+  if (
+    mimeType ===
+    'text/plain'
+  ) {
+    return cleanPlainText(
+      decoded,
+    )
+  }
+
+  return ''
+}
+
+function findBodyByMimeType(
+  part: GmailPart | undefined,
+  targetMimeType:
+    | 'text/html'
+    | 'text/plain',
+): string {
+  if (!part) {
+    return ''
+  }
+
+  if (isAttachmentPart(part)) {
+    return ''
+  }
+
+  const mimeType =
+    part.mimeType
+      ?.trim()
+      .toLowerCase() ?? ''
+
+  if (
+    mimeType ===
+    'message/rfc822'
+  ) {
+    return ''
+  }
+
+  if (
+    mimeType ===
+      targetMimeType &&
+    part.body?.data
+  ) {
+    return getReadableLeafBody(
+      part,
+    )
   }
 
   for (
     const child of
     part.parts ?? []
   ) {
-    collectBodyCandidates(
-      child,
-      result,
-    )
+    const body =
+      findBodyByMimeType(
+        child,
+        targetMimeType,
+      )
+
+    if (body) {
+      return body
+    }
   }
+
+  return ''
 }
 
 function getMessageBody(
@@ -428,52 +504,171 @@ function getMessageBody(
     return ''
   }
 
-  const candidates: BodyCandidate[] = []
-
-  collectBodyCandidates(
-    payload,
-    candidates,
-  )
-
-  const htmlBodies =
-    candidates
-      .filter(
-        (candidate) =>
-          candidate.mimeType ===
-          'text/html',
-      )
-      .map(
-        (candidate) =>
-          stripHtml(
-            candidate.content,
-          ),
-      )
-      .filter(Boolean)
-
-  if (htmlBodies.length > 0) {
-    return htmlBodies
-      .join('\n\n')
-      .trim()
+  if (isAttachmentPart(payload)) {
+    return ''
   }
 
-  const plainBodies =
-    candidates
-      .filter(
-        (candidate) =>
-          candidate.mimeType ===
-          'text/plain',
-      )
-      .map(
-        (candidate) =>
-          cleanPlainText(
-            candidate.content,
-          ),
-      )
-      .filter(Boolean)
+  const mimeType =
+    payload.mimeType
+      ?.trim()
+      .toLowerCase() ?? ''
 
-  return plainBodies
-    .join('\n\n')
-    .trim()
+  if (
+    mimeType ===
+      'text/html' ||
+    mimeType ===
+      'text/plain'
+  ) {
+    return getReadableLeafBody(
+      payload,
+    )
+  }
+
+  if (
+    mimeType ===
+    'message/rfc822'
+  ) {
+    return ''
+  }
+
+  if (
+    mimeType ===
+    'multipart/alternative'
+  ) {
+    const html =
+      findBodyByMimeType(
+        payload,
+        'text/html',
+      )
+
+    if (html) {
+      return html
+    }
+
+    return findBodyByMimeType(
+      payload,
+      'text/plain',
+    )
+  }
+
+  if (
+    mimeType ===
+    'multipart/related'
+  ) {
+    for (
+      const child of
+      payload.parts ?? []
+    ) {
+      if (
+        isAttachmentPart(
+          child,
+        )
+      ) {
+        continue
+      }
+
+      const childMimeType =
+        child.mimeType
+          ?.trim()
+          .toLowerCase() ?? ''
+
+      if (
+        childMimeType.startsWith(
+          'image/',
+        )
+      ) {
+        continue
+      }
+
+      const body =
+        getMessageBody(
+          child,
+        )
+
+      if (body) {
+        return body
+      }
+    }
+
+    return ''
+  }
+
+  if (
+    mimeType ===
+    'multipart/mixed'
+  ) {
+    for (
+      const child of
+      payload.parts ?? []
+    ) {
+      if (
+        isAttachmentPart(
+          child,
+        )
+      ) {
+        continue
+      }
+
+      const childMimeType =
+        child.mimeType
+          ?.trim()
+          .toLowerCase() ?? ''
+
+      if (
+        childMimeType ===
+        'message/rfc822'
+      ) {
+        continue
+      }
+
+      const body =
+        getMessageBody(
+          child,
+        )
+
+      if (body) {
+        return body
+      }
+    }
+
+    return ''
+  }
+
+  for (
+    const child of
+    payload.parts ?? []
+  ) {
+    if (
+      isAttachmentPart(
+        child,
+      )
+    ) {
+      continue
+    }
+
+    const childMimeType =
+      child.mimeType
+        ?.trim()
+        .toLowerCase() ?? ''
+
+    if (
+      childMimeType ===
+      'message/rfc822'
+    ) {
+      continue
+    }
+
+    const body =
+      getMessageBody(
+        child,
+      )
+
+    if (body) {
+      return body
+    }
+  }
+
+  return ''
 }
 
 function collectAttachments(
