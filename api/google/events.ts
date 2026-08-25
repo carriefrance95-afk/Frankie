@@ -16,7 +16,9 @@ type GoogleTokenResponse = {
 }
 
 type CalendarEventRequest = {
-  action?: 'create'
+  action?: 'create' | 'update' | 'delete'
+  eventId?: string
+  calendarId?: string | null
   title?: string
   description?: string | null
   location?: string | null
@@ -662,6 +664,7 @@ async function loadPrimaryCalendar(
 
 async function createGoogleEvent(
   accessToken: string,
+  calendarId: string,
   payload:
     Record<
       string,
@@ -670,7 +673,7 @@ async function createGoogleEvent(
 ) {
   const response =
     await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
       {
         method:
           'POST',
@@ -707,11 +710,12 @@ async function createGoogleEvent(
 
 async function verifyGoogleEvent(
   accessToken: string,
+  calendarId: string,
   eventId: string,
 ) {
   const response =
     await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(
         eventId,
       )}`,
       {
@@ -735,6 +739,41 @@ async function verifyGoogleEvent(
   }
 
   return data
+}
+
+async function updateGoogleEvent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  payload: Record<string, unknown>,
+) {
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  )
+  const data = (await response.json()) as GoogleEventResponse
+  if (!response.ok || !data.id) throw new Error(data.error?.message ?? 'Google Calendar could not update the event.')
+  return data
+}
+
+async function deleteGoogleEvent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+) {
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  if (!response.ok && response.status !== 410) {
+    let message = 'Google Calendar could not delete the event.'
+    try { const data = (await response.json()) as GoogleEventResponse; message = data.error?.message ?? message } catch {}
+    throw new Error(message)
+  }
 }
 
 export default {
@@ -762,8 +801,9 @@ export default {
           CalendarEventRequest
 
       if (
-        body.action !==
-        'create'
+        body.action !== 'create' &&
+        body.action !== 'update' &&
+        body.action !== 'delete'
       ) {
         return Response.json(
           {
@@ -789,6 +829,16 @@ export default {
           {
             status: 400,
           },
+        )
+      }
+
+      if (
+        (body.action === 'update' || body.action === 'delete') &&
+        !body.eventId?.trim()
+      ) {
+        return Response.json(
+          { error: 'Event ID is required for this calendar action.' },
+          { status: 400 },
         )
       }
 
@@ -1074,6 +1124,10 @@ export default {
           .timeZone ??
         'America/New_York'
 
+      const targetCalendarId =
+        body.calendarId?.trim() ||
+        primaryCalendar.id
+
       const defaultDuration =
         Math.max(
           1,
@@ -1226,71 +1280,46 @@ export default {
           },
         }
 
-      const created =
-        await createGoogleEvent(
-          googleAccessToken,
-          eventPayload,
-        )
+      if (body.action === 'delete') {
+        const eventId = body.eventId!.trim()
+        await deleteGoogleEvent(googleAccessToken, targetCalendarId, eventId)
+        const verifiedEvent = await verifyGoogleEvent(googleAccessToken, targetCalendarId, eventId)
+        return Response.json({
+          ok: true,
+          verified: !verifiedEvent || verifiedEvent.status === 'cancelled',
+          action: 'delete',
+          event: { id: eventId, calendarId: targetCalendarId },
+        })
+      }
 
-      const verifiedEvent =
-        await verifyGoogleEvent(
-          googleAccessToken,
-          created.id!,
-        )
+      if (body.action === 'update') {
+        const eventId = body.eventId!.trim()
+        const updated = await updateGoogleEvent(googleAccessToken, targetCalendarId, eventId, eventPayload)
+        const verifiedEvent = await verifyGoogleEvent(googleAccessToken, targetCalendarId, eventId)
+        return Response.json({
+          ok: true,
+          verified: Boolean(verifiedEvent?.id === eventId && verifiedEvent?.status !== 'cancelled' && verifiedEvent?.summary === title),
+          action: 'update',
+          event: { id: updated.id, title: updated.summary ?? title, link: updated.htmlLink ?? null, calendarId: targetCalendarId, colorId: updated.colorId ?? selectedColor?.google_color_id ?? null },
+        })
+      }
 
-      const verified =
-        Boolean(
-          verifiedEvent?.id ===
-            created.id &&
-          verifiedEvent
-            ?.status !==
-            'cancelled' &&
-          verifiedEvent
-            ?.summary ===
-            title,
-        )
+      const created = await createGoogleEvent(googleAccessToken, targetCalendarId, eventPayload)
+      const verifiedEvent = await verifyGoogleEvent(googleAccessToken, targetCalendarId, created.id!)
+      const verified = Boolean(verifiedEvent?.id === created.id && verifiedEvent?.status !== 'cancelled' && verifiedEvent?.summary === title)
 
       return Response.json({
         ok: true,
         verified,
+        action: 'create',
         event: {
-          id:
-            created.id,
-          title,
-          link:
-            created.htmlLink ??
-            null,
-          allDay,
-          startDate,
-          startTime:
-            allDay
-              ? null
-              : body.startTime,
-          endTime:
-            allDay
-              ? null
-              : body.endTime ??
-                null,
-          timeZone:
-            allDay
-              ? null
-              : timeZone,
-          recurring:
-            Boolean(
-              recurrence,
-            ),
-          recurrence:
-            recurrence ??
-            null,
-          colorId:
-            selectedColor
-              ?.google_color_id ??
-            null,
-          colorMeaning:
-            selectedColor
-              ?.label ??
-            body.colorMeaning ??
-            null,
+          id: created.id, title, link: created.htmlLink ?? null, calendarId: targetCalendarId, allDay, startDate,
+          startTime: allDay ? null : body.startTime,
+          endTime: allDay ? null : body.endTime ?? null,
+          timeZone: allDay ? null : timeZone,
+          recurring: Boolean(recurrence), recurrence: recurrence ?? null,
+          colorId: selectedColor?.google_color_id ?? null,
+          colorMeaning: selectedColor?.label ?? body.colorMeaning ?? null,
         },
       })
     } catch (error) {
