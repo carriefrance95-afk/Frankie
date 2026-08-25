@@ -42,6 +42,7 @@ type DetailMessage = {
   receivedAt: string | null
   snippet: string
   body: string
+  htmlBody: string
   unread: boolean
   starred: boolean
   important: boolean
@@ -105,6 +106,76 @@ function cleanSender(value: string | null) {
   const match = value.match(/^"?([^"<]+?)"?\s*<[^>]+>$/)
 
   return match?.[1]?.trim() || value.trim()
+}
+
+function buildEmailDocument(html: string): string {
+  const safeHtml = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<form[\s\S]*?<\/form>/gi, '')
+
+  const securityHead = `
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'none';
+        img-src https: http: data:;
+        style-src 'unsafe-inline' https: http:;
+        font-src https: http: data:;
+        script-src 'none';
+        object-src 'none';
+        frame-src 'none';
+        connect-src 'none';
+        form-action 'none';
+        base-uri 'none';
+      "
+    />
+    <base target="_blank" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+      }
+
+      body {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        overflow-wrap: anywhere;
+      }
+
+      img {
+        max-width: 100% !important;
+        height: auto;
+      }
+
+      table {
+        max-width: 100% !important;
+      }
+    </style>
+  `
+
+  if (/<head[\s>]/i.test(safeHtml)) {
+    return safeHtml.replace(
+      /<head([^>]*)>/i,
+      `<head$1>${securityHead}`,
+    )
+  }
+
+  if (/<html[\s>]/i.test(safeHtml)) {
+    return safeHtml.replace(
+      /<html([^>]*)>/i,
+      `<html$1><head>${securityHead}</head>`,
+    )
+  }
+
+  return `<!doctype html>
+<html>
+  <head>${securityHead}</head>
+  <body>${safeHtml}</body>
+</html>`
 }
 
 function EmailWorkspace() {
@@ -639,11 +710,23 @@ function EmailWorkspace() {
                       )}
                     </div>
 
-                    <div className="email-thread-body">
-                      {message.body ||
-                        message.snippet ||
-                        'No readable message body was returned.'}
-                    </div>
+                    {message.htmlBody ? (
+                      <div className="email-thread-html-wrap">
+                        <iframe
+                          title={`Email from ${cleanSender(message.from)}`}
+                          className="email-thread-html-frame"
+                          sandbox="allow-popups allow-popups-to-escape-sandbox"
+                          referrerPolicy="no-referrer"
+                          srcDoc={buildEmailDocument(message.htmlBody)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="email-thread-body">
+                        {message.body ||
+                          message.snippet ||
+                          'No readable message body was returned.'}
+                      </div>
+                    )}
 
                     {message.attachments.length > 0 && (
                       <div className="email-thread-attachments">
