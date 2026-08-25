@@ -61,6 +61,11 @@ type GmailThreadResponse = {
   error?: unknown
 }
 
+type BodyCandidate = {
+  content: string
+  mimeType: 'text/plain' | 'text/html'
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name]
 
@@ -93,7 +98,7 @@ function getHeader(
   return match?.value ?? null
 }
 
-function decodeBase64Url(value: string): string {
+function decodeBase64UrlToBuffer(value: string): Buffer {
   const normalized = value
     .replace(/-/g, '+')
     .replace(/_/g, '/')
@@ -103,98 +108,370 @@ function decodeBase64Url(value: string): string {
       ? ''
       : '='.repeat(4 - (normalized.length % 4))
 
+  return Buffer.from(
+    normalized + padding,
+    'base64',
+  )
+}
+
+function decodeQuotedPrintable(value: string): string {
+  const withoutSoftBreaks = value
+    .replace(/=\r\n/g, '')
+    .replace(/=\n/g, '')
+
+  const bytes: number[] = []
+
+  for (
+    let index = 0;
+    index < withoutSoftBreaks.length;
+    index += 1
+  ) {
+    const current = withoutSoftBreaks[index]
+
+    if (
+      current === '=' &&
+      index + 2 < withoutSoftBreaks.length
+    ) {
+      const hex =
+        withoutSoftBreaks.slice(
+          index + 1,
+          index + 3,
+        )
+
+      if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+        bytes.push(parseInt(hex, 16))
+        index += 2
+        continue
+      }
+    }
+
+    const encoded =
+      Buffer.from(current, 'utf8')
+
+    for (const byte of encoded) {
+      bytes.push(byte)
+    }
+  }
+
   try {
-    return Buffer.from(
-      normalized + padding,
-      'base64',
-    ).toString('utf-8')
+    return Buffer.from(bytes).toString('utf8')
+  } catch {
+    return withoutSoftBreaks
+  }
+}
+
+function decodeMimeBody(part: GmailPart): string {
+  if (!part.body?.data) {
+    return ''
+  }
+
+  try {
+    const wrapped =
+      decodeBase64UrlToBuffer(
+        part.body.data,
+      )
+
+    const transferEncoding =
+      getHeader(
+        part.headers,
+        'Content-Transfer-Encoding',
+      )
+        ?.trim()
+        .toLowerCase() ?? ''
+
+    if (transferEncoding === 'base64') {
+      const encodedText =
+        wrapped
+          .toString('utf8')
+          .replace(/\s+/g, '')
+
+      try {
+        return Buffer.from(
+          encodedText,
+          'base64',
+        ).toString('utf8')
+      } catch {
+        return wrapped.toString('utf8')
+      }
+    }
+
+    const decoded =
+      wrapped.toString('utf8')
+
+    if (
+      transferEncoding ===
+        'quoted-printable' ||
+      /=([0-9A-Fa-f]{2})/.test(decoded)
+    ) {
+      return decodeQuotedPrintable(
+        decoded,
+      )
+    }
+
+    return decoded
   } catch {
     return ''
   }
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '• ')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
+function decodeHtmlEntities(value: string): string {
+  return value
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n[ \t]+/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/&apos;/gi, "'")
+    .replace(/&copy;/gi, '©')
+    .replace(/&reg;/gi, '®')
+    .replace(/&trade;/gi, '™')
+    .replace(
+      /&#(\d+);/g,
+      (_match, number: string) => {
+        const code = Number(number)
+
+        return Number.isFinite(code)
+          ? String.fromCodePoint(code)
+          : ''
+      },
+    )
+    .replace(
+      /&#x([0-9a-f]+);/gi,
+      (_match, hex: string) => {
+        const code =
+          parseInt(hex, 16)
+
+        return Number.isFinite(code)
+          ? String.fromCodePoint(code)
+          : ''
+      },
+    )
+}
+
+function stripHtml(html: string): string {
+  return decodeHtmlEntities(
+    html
+      .replace(
+        /<style[\s\S]*?<\/style>/gi,
+        ' ',
+      )
+      .replace(
+        /<script[\s\S]*?<\/script>/gi,
+        ' ',
+      )
+      .replace(
+        /<head[\s\S]*?<\/head>/gi,
+        ' ',
+      )
+      .replace(
+        /<img\b[^>]*alt=["']([^"']+)["'][^>]*>/gi,
+        '\n$1\n',
+      )
+      .replace(
+        /<img\b[^>]*>/gi,
+        ' ',
+      )
+      .replace(
+        /<a\b[^>]*>([\s\S]*?)<\/a>/gi,
+        '$1',
+      )
+      .replace(
+        /<br\s*\/?>/gi,
+        '\n',
+      )
+      .replace(
+        /<\/p>/gi,
+        '\n\n',
+      )
+      .replace(
+        /<\/div>/gi,
+        '\n',
+      )
+      .replace(
+        /<\/tr>/gi,
+        '\n',
+      )
+      .replace(
+        /<\/td>/gi,
+        ' ',
+      )
+      .replace(
+        /<li[^>]*>/gi,
+        '• ',
+      )
+      .replace(
+        /<\/li>/gi,
+        '\n',
+      )
+      .replace(
+        /<\/h[1-6]>/gi,
+        '\n\n',
+      )
+      .replace(
+        /<[^>]+>/g,
+        ' ',
+      ),
+  )
+    .replace(
+      /[ \t]+\n/g,
+      '\n',
+    )
+    .replace(
+      /\n[ \t]+/g,
+      '\n',
+    )
+    .replace(
+      /[ \t]{2,}/g,
+      ' ',
+    )
+    .replace(
+      /\n{3,}/g,
+      '\n\n',
+    )
+    .trim()
+}
+
+function cleanPlainText(value: string): string {
+  let cleaned = value
+
+  if (
+    /=([0-9A-Fa-f]{2})/.test(cleaned)
+  ) {
+    cleaned =
+      decodeQuotedPrintable(
+        cleaned,
+      )
+  }
+
+  return cleaned
+    .replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+      '$1',
+    )
+    .replace(
+      /<https?:\/\/[^>]+>/g,
+      '',
+    )
+    .replace(
+      /(?<!\S)https?:\/\/\S+/g,
+      '',
+    )
+    .replace(
+      /[ \t]+\n/g,
+      '\n',
+    )
+    .replace(
+      /\n[ \t]+/g,
+      '\n',
+    )
+    .replace(
+      /[ \t]{2,}/g,
+      ' ',
+    )
+    .replace(
+      /\n{3,}/g,
+      '\n\n',
+    )
     .trim()
 }
 
 function collectBodyCandidates(
   part: GmailPart | undefined,
-  result: {
-    plain: string[]
-    html: string[]
-  },
+  result: BodyCandidate[],
 ) {
-  if (!part) return
+  if (!part) {
+    return
+  }
 
   const mimeType =
-    part.mimeType?.toLowerCase() ?? ''
+    part.mimeType
+      ?.trim()
+      .toLowerCase() ?? ''
 
-  if (part.body?.data) {
-    const decoded =
-      decodeBase64Url(part.body.data)
+  if (
+    part.body?.data &&
+    (
+      mimeType === 'text/plain' ||
+      mimeType === 'text/html'
+    )
+  ) {
+    const content =
+      decodeMimeBody(part)
 
-    if (decoded) {
-      if (mimeType === 'text/plain') {
-        result.plain.push(decoded)
-      } else if (mimeType === 'text/html') {
-        result.html.push(decoded)
-      }
+    if (content.trim()) {
+      result.push({
+        content,
+        mimeType:
+          mimeType as
+            | 'text/plain'
+            | 'text/html',
+      })
     }
   }
 
-  for (const child of part.parts ?? []) {
-    collectBodyCandidates(child, result)
+  for (
+    const child of
+    part.parts ?? []
+  ) {
+    collectBodyCandidates(
+      child,
+      result,
+    )
   }
 }
 
 function getMessageBody(
   payload: GmailPart | undefined,
 ): string {
-  if (!payload) return ''
-
-  const candidates = {
-    plain: [] as string[],
-    html: [] as string[],
+  if (!payload) {
+    return ''
   }
+
+  const candidates: BodyCandidate[] = []
 
   collectBodyCandidates(
     payload,
     candidates,
   )
 
-  const plainText =
-    candidates.plain
-      .map((value) => value.trim())
+  const htmlBodies =
+    candidates
+      .filter(
+        (candidate) =>
+          candidate.mimeType ===
+          'text/html',
+      )
+      .map(
+        (candidate) =>
+          stripHtml(
+            candidate.content,
+          ),
+      )
       .filter(Boolean)
+
+  if (htmlBodies.length > 0) {
+    return htmlBodies
       .join('\n\n')
       .trim()
-
-  if (plainText) {
-    return plainText
   }
 
-  return candidates.html
-    .map(stripHtml)
-    .filter(Boolean)
+  const plainBodies =
+    candidates
+      .filter(
+        (candidate) =>
+          candidate.mimeType ===
+          'text/plain',
+      )
+      .map(
+        (candidate) =>
+          cleanPlainText(
+            candidate.content,
+          ),
+      )
+      .filter(Boolean)
+
+  return plainBodies
     .join('\n\n')
     .trim()
 }
@@ -208,7 +485,9 @@ function collectAttachments(
     attachmentId: string | null
   }>,
 ) {
-  if (!part) return
+  if (!part) {
+    return
+  }
 
   const filename =
     part.filename?.trim() ?? ''
@@ -221,12 +500,15 @@ function collectAttachments(
       size:
         part.body?.size ?? 0,
       attachmentId:
-        part.body?.attachmentId ??
-        null,
+        part.body
+          ?.attachmentId ?? null,
     })
   }
 
-  for (const child of part.parts ?? []) {
+  for (
+    const child of
+    part.parts ?? []
+  ) {
     collectAttachments(
       child,
       result,
@@ -252,7 +534,8 @@ async function refreshGoogleAccessToken(
             'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          client_id: clientId,
+          client_id:
+            clientId,
           client_secret:
             clientSecret,
           refresh_token:
@@ -287,7 +570,10 @@ async function refreshGoogleAccessToken(
     expiresAt:
       new Date(
         Date.now() +
-          (data.expires_in ?? 3600) *
+          (
+            data.expires_in ??
+            3600
+          ) *
             1000,
       ).toISOString(),
   }
@@ -297,10 +583,14 @@ export default {
   async fetch(
     request: Request,
   ): Promise<Response> {
-    if (request.method !== 'GET') {
+    if (
+      request.method !==
+      'GET'
+    ) {
       return Response.json(
         {
-          error: 'Method not allowed',
+          error:
+            'Method not allowed',
         },
         {
           status: 405,
@@ -310,19 +600,24 @@ export default {
 
     try {
       const requestUrl =
-        new URL(request.url)
+        new URL(
+          request.url,
+        )
 
       const accountId =
-        requestUrl.searchParams.get(
-          'accountId',
-        )
+        requestUrl
+          .searchParams
+          .get('accountId')
 
       const messageId =
-        requestUrl.searchParams.get(
-          'messageId',
-        )
+        requestUrl
+          .searchParams
+          .get('messageId')
 
-      if (!accountId || !messageId) {
+      if (
+        !accountId ||
+        !messageId
+      ) {
         return Response.json(
           {
             error:
@@ -355,12 +650,17 @@ export default {
         )
 
       const frankieAccessToken =
-        getBearerToken(request)
+        getBearerToken(
+          request,
+        )
 
-      if (!frankieAccessToken) {
+      if (
+        !frankieAccessToken
+      ) {
         return Response.json(
           {
-            error: 'Not authenticated',
+            error:
+              'Not authenticated',
           },
           {
             status: 401,
@@ -374,19 +674,26 @@ export default {
           serviceRoleKey,
           {
             auth: {
-              persistSession: false,
-              autoRefreshToken: false,
+              persistSession:
+                false,
+              autoRefreshToken:
+                false,
             },
           },
         )
 
       const {
-        data: { user },
-        error: userError,
+        data: {
+          user,
+        },
+        error:
+          userError,
       } =
-        await supabaseAdmin.auth.getUser(
-          frankieAccessToken,
-        )
+        await supabaseAdmin
+          .auth
+          .getUser(
+            frankieAccessToken,
+          )
 
       if (
         userError ||
@@ -394,7 +701,8 @@ export default {
       ) {
         return Response.json(
           {
-            error: 'Invalid session',
+            error:
+              'Invalid session',
           },
           {
             status: 401,
@@ -403,11 +711,15 @@ export default {
       }
 
       const {
-        data: accountData,
-        error: accountError,
+        data:
+          accountData,
+        error:
+          accountError,
       } =
         await supabaseAdmin
-          .from('email_accounts')
+          .from(
+            'email_accounts',
+          )
           .select(`
             id,
             owner_id,
@@ -466,8 +778,10 @@ export default {
           EmailAccountRow
 
       const {
-        data: tokenData,
-        error: tokenError,
+        data:
+          tokenData,
+        error:
+          tokenError,
       } =
         await supabaseAdmin
           .from(
@@ -525,10 +839,13 @@ export default {
           expiresAtMs,
         ) ||
         expiresAtMs <=
-          Date.now() + 60_000
+          Date.now() +
+            60_000
 
       if (shouldRefresh) {
-        if (!token.refresh_token) {
+        if (
+          !token.refresh_token
+        ) {
           await supabaseAdmin
             .from(
               'email_accounts',
@@ -539,7 +856,8 @@ export default {
               last_error:
                 'Google authorization expired and no refresh token is available.',
               updated_at:
-                new Date().toISOString(),
+                new Date()
+                  .toISOString(),
             })
             .eq(
               'id',
@@ -582,7 +900,8 @@ export default {
                 expires_at:
                   refreshed.expiresAt,
                 updated_at:
-                  new Date().toISOString(),
+                  new Date()
+                    .toISOString(),
               })
               .eq(
                 'email_account_id',
@@ -593,7 +912,9 @@ export default {
                 user.id,
               )
 
-          if (refreshSaveError) {
+          if (
+            refreshSaveError
+          ) {
             console.error(
               'Frankie Gmail detail refreshed token save failed:',
               refreshSaveError,
@@ -612,7 +933,8 @@ export default {
               last_error:
                 'Google authorization must be renewed.',
               updated_at:
-                new Date().toISOString(),
+                new Date()
+                  .toISOString(),
             })
             .eq(
               'id',
@@ -645,17 +967,21 @@ export default {
           )}`,
         )
 
-      seedMessageUrl.searchParams.set(
-        'format',
-        'metadata',
-      )
+      seedMessageUrl
+        .searchParams
+        .set(
+          'format',
+          'metadata',
+        )
 
       const seedResponse =
         await fetch(
           seedMessageUrl,
           {
-            cache: 'no-store',
-            headers: googleHeaders,
+            cache:
+              'no-store',
+            headers:
+              googleHeaders,
           },
         )
 
@@ -675,13 +1001,15 @@ export default {
         return Response.json(
           {
             error:
-              seedResponse.status === 401
+              seedResponse.status ===
+              401
                 ? 'This Gmail account needs to be reconnected.'
                 : 'Frankie could not open that email.',
           },
           {
             status:
-              seedResponse.status === 401
+              seedResponse.status ===
+              401
                 ? 401
                 : 502,
           },
@@ -695,17 +1023,21 @@ export default {
           )}`,
         )
 
-      threadUrl.searchParams.set(
-        'format',
-        'full',
-      )
+      threadUrl
+        .searchParams
+        .set(
+          'format',
+          'full',
+        )
 
       const threadResponse =
         await fetch(
           threadUrl,
           {
-            cache: 'no-store',
-            headers: googleHeaders,
+            cache:
+              'no-store',
+            headers:
+              googleHeaders,
           },
         )
 
@@ -725,13 +1057,15 @@ export default {
         return Response.json(
           {
             error:
-              threadResponse.status === 401
+              threadResponse.status ===
+              401
                 ? 'This Gmail account needs to be reconnected.'
                 : 'Frankie could not read that email thread.',
           },
           {
             status:
-              threadResponse.status === 401
+              threadResponse.status ===
+              401
                 ? 401
                 : 502,
           },
@@ -739,158 +1073,206 @@ export default {
       }
 
       const messages =
-        (threadData.messages ?? [])
-          .map((message) => {
-            if (!message.id) {
-              return null
-            }
+        (
+          threadData.messages ??
+          []
+        )
+          .map(
+            (
+              message,
+            ) => {
+              if (
+                !message.id
+              ) {
+                return null
+              }
 
-            const headers =
-              message.payload?.headers
+              const headers =
+                message.payload
+                  ?.headers
 
-            const attachments: Array<{
-              filename: string
-              mimeType: string | null
-              size: number
-              attachmentId: string | null
-            }> = []
+              const attachments: Array<{
+                filename: string
+                mimeType: string | null
+                size: number
+                attachmentId: string | null
+              }> = []
 
-            collectAttachments(
-              message.payload,
-              attachments,
-            )
+              collectAttachments(
+                message.payload,
+                attachments,
+              )
 
-            const labels =
-              message.labelIds ?? []
+              const labels =
+                message.labelIds ??
+                []
 
-            return {
-              id:
-                message.id,
-              threadId:
-                message.threadId ??
-                threadData.id,
-              from:
-                getHeader(
-                  headers,
-                  'From',
-                ),
-              to:
-                getHeader(
-                  headers,
-                  'To',
-                ),
-              cc:
-                getHeader(
-                  headers,
-                  'Cc',
-                ),
-              bcc:
-                getHeader(
-                  headers,
-                  'Bcc',
-                ),
-              replyTo:
-                getHeader(
-                  headers,
-                  'Reply-To',
-                ),
-              subject:
-                getHeader(
-                  headers,
-                  'Subject',
-                ) ??
-                '(No subject)',
-              date:
-                getHeader(
-                  headers,
-                  'Date',
-                ),
-              receivedAt:
-                message.internalDate
-                  ? new Date(
-                      Number(
-                        message.internalDate,
-                      ),
-                    ).toISOString()
-                  : null,
-              snippet:
-                message.snippet ?? '',
-              body:
-                getMessageBody(
-                  message.payload,
-                ),
-              unread:
-                labels.includes(
-                  'UNREAD',
-                ),
-              starred:
-                labels.includes(
-                  'STARRED',
-                ),
-              important:
-                labels.includes(
-                  'IMPORTANT',
-                ),
-              labels,
-              attachments,
-              internetMessageId:
-                getHeader(
-                  headers,
-                  'Message-ID',
-                ),
-              inReplyTo:
-                getHeader(
-                  headers,
-                  'In-Reply-To',
-                ),
-              references:
-                getHeader(
-                  headers,
-                  'References',
-                ),
-            }
-          })
+              return {
+                id:
+                  message.id,
+
+                threadId:
+                  message.threadId ??
+                  threadData.id,
+
+                from:
+                  getHeader(
+                    headers,
+                    'From',
+                  ),
+
+                to:
+                  getHeader(
+                    headers,
+                    'To',
+                  ),
+
+                cc:
+                  getHeader(
+                    headers,
+                    'Cc',
+                  ),
+
+                bcc:
+                  getHeader(
+                    headers,
+                    'Bcc',
+                  ),
+
+                replyTo:
+                  getHeader(
+                    headers,
+                    'Reply-To',
+                  ),
+
+                subject:
+                  getHeader(
+                    headers,
+                    'Subject',
+                  ) ??
+                  '(No subject)',
+
+                date:
+                  getHeader(
+                    headers,
+                    'Date',
+                  ),
+
+                receivedAt:
+                  message.internalDate
+                    ? new Date(
+                        Number(
+                          message.internalDate,
+                        ),
+                      ).toISOString()
+                    : null,
+
+                snippet:
+                  message.snippet ??
+                  '',
+
+                body:
+                  getMessageBody(
+                    message.payload,
+                  ),
+
+                unread:
+                  labels.includes(
+                    'UNREAD',
+                  ),
+
+                starred:
+                  labels.includes(
+                    'STARRED',
+                  ),
+
+                important:
+                  labels.includes(
+                    'IMPORTANT',
+                  ),
+
+                labels,
+
+                attachments,
+
+                internetMessageId:
+                  getHeader(
+                    headers,
+                    'Message-ID',
+                  ),
+
+                inReplyTo:
+                  getHeader(
+                    headers,
+                    'In-Reply-To',
+                  ),
+
+                references:
+                  getHeader(
+                    headers,
+                    'References',
+                  ),
+              }
+            },
+          )
           .filter(
             (
               message,
-            ): message is
-              NonNullable<
-                typeof message
-              > =>
-              message !== null,
+            ): message is NonNullable<
+              typeof message
+            > =>
+              message !==
+              null,
           )
           .sort(
-            (a, b) =>
-              (a.receivedAt ?? '').localeCompare(
-                b.receivedAt ?? '',
+            (
+              a,
+              b,
+            ) =>
+              (
+                a.receivedAt ??
+                ''
+              ).localeCompare(
+                b.receivedAt ??
+                  '',
               ),
           )
 
       return Response.json({
         ok: true,
         readOnly: true,
+
         account: {
           id:
             account.id,
+
           emailAddress:
             account.email_address,
+
           accountLabel:
             account.account_label,
+
           accountType:
             account.account_type,
+
           businessId:
             account.business_id,
         },
+
         thread: {
           id:
             threadData.id,
+
           historyId:
             threadData.historyId ??
             null,
+
           selectedMessageId:
             messageId,
+
           messageCount:
             messages.length,
+
           messages,
         },
       })
