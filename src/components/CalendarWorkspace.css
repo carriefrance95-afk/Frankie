@@ -53,6 +53,7 @@
 
 .calendar-secondary-action,
 .calendar-primary-action,
+.calendar-add-event-action,
 .calendar-toolbar button,
 .calendar-frankie-plan,
 .calendar-connect-state button {
@@ -77,6 +78,13 @@
   border: 1px solid var(--accent);
   background: var(--accent);
   color: #fff8ef;
+}
+
+.calendar-add-event-action {
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-3);
+  color: var(--text-primary);
 }
 
 .calendar-secondary-action,
@@ -176,15 +184,12 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  padding: 7px;
-  border: 0;
+  gap: 5px;
+  padding: 6px;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
 .calendar-day-cell:nth-child(7n) {
@@ -201,6 +206,15 @@
 
 .calendar-day-cell.selected {
   background: var(--accent-soft);
+}
+
+.calendar-day-select {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
 }
 
 .calendar-day-number {
@@ -227,14 +241,21 @@
 }
 
 .calendar-mini-item {
+  width: 100%;
   overflow: hidden;
   display: block;
   padding: 3px 5px;
   border-radius: 5px;
+  font: inherit;
   font-size: .49rem;
   line-height: 1.25;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+button.calendar-mini-item {
+  cursor: pointer;
 }
 
 .calendar-mini-item.google {
@@ -250,10 +271,14 @@
 }
 
 .calendar-more-count {
-  display: block;
+  padding: 1px 2px;
+  border: 0;
+  background: transparent;
   color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
   font-size: .46rem;
-  padding-left: 2px;
+  text-align: left;
 }
 
 .calendar-day-panel {
@@ -263,11 +288,15 @@
 }
 
 .calendar-day-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   padding: 14px 14px 11px;
   border-bottom: 1px solid var(--border);
 }
 
-.calendar-day-panel-header > span {
+.calendar-day-panel-header > div > span {
   display: block;
   color: var(--accent);
   font-size: .51rem;
@@ -281,6 +310,20 @@
   font-family: Georgia, "Times New Roman", serif;
   font-size: .96rem;
   font-weight: 500;
+}
+
+.calendar-day-add {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 800;
 }
 
 .calendar-day-summary {
@@ -322,8 +365,7 @@ button.calendar-agenda-item {
 }
 
 button.calendar-agenda-item:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-3);
+  filter: brightness(.98);
 }
 
 .calendar-agenda-item.google {
@@ -373,15 +415,6 @@ button.calendar-agenda-item:hover {
   line-height: 1.4;
 }
 
-.calendar-agenda-copy a {
-  display: inline-block;
-  margin-top: 5px;
-  color: var(--accent-bright);
-  font-size: .51rem;
-  font-weight: 800;
-  text-decoration: none;
-}
-
 .calendar-empty-day {
   padding: 20px 12px;
   text-align: center;
@@ -404,6 +437,19 @@ button.calendar-agenda-item:hover {
   margin: 3px 0 0;
   color: var(--text-faint);
   font-size: .53rem;
+}
+
+.calendar-empty-day button {
+  margin-top: 10px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: .54rem;
+  font-weight: 800;
 }
 
 .calendar-frankie-plan {

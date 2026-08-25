@@ -3,6 +3,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import CalendarSetupPanel from './CalendarSetupPanel'
 import type { GoogleEventColor } from './CalendarSetupPanel'
+import CalendarEventEditor from './CalendarEventEditor.tsx'
+import type {
+  EditableCalendar,
+  EditableGoogleCalendarEvent,
+} from './CalendarEventEditor.tsx'
 
 export type CalendarTask = {
   id: string
@@ -20,30 +25,13 @@ export type CalendarBusiness = {
   name: string
 }
 
-type GoogleCalendar = {
-  id: string
-  name: string
-  primary: boolean
-  accessRole?: string | null
-  color?: string | null
-}
+type GoogleCalendar =
+  EditableCalendar & {
+    color?: string | null
+  }
 
-type GoogleCalendarEvent = {
-  id: string
-  title: string
-  description: string | null
-  location: string | null
-  link: string | null
-  start: string | null
-  end: string | null
-  allDay: boolean
-  timeZone: string | null
-  calendarId: string
-  calendarName: string
-  colorId?: string | null
-  color?: string | null
-  textColor?: string | null
-}
+type GoogleCalendarEvent =
+  EditableGoogleCalendarEvent
 
 type CalendarApiResponse = {
   connected?: boolean
@@ -231,6 +219,10 @@ function CalendarWorkspace({
   const [error, setError] = useState<string | null>(null)
   const [showCalendarSetup, setShowCalendarSetup] =
     useState(false)
+  const [showEventEditor, setShowEventEditor] =
+    useState(false)
+  const [editingEvent, setEditingEvent] =
+    useState<GoogleCalendarEvent | null>(null)
 
   const scopedTasks = useMemo(
     () =>
@@ -429,6 +421,31 @@ function CalendarWorkspace({
     )
   }
 
+  const openNewEvent =
+    (date = selectedDate) => {
+      setSelectedDate(date)
+      setEditingEvent(null)
+      setShowEventEditor(true)
+    }
+
+  const openExistingEvent =
+    (event: GoogleCalendarEvent) => {
+      setEditingEvent(event)
+      setShowEventEditor(true)
+    }
+
+  const closeEventEditor =
+    () => {
+      setShowEventEditor(false)
+      setEditingEvent(null)
+    }
+
+  const handleEventSaved =
+    () => {
+      closeEventEditor()
+      void loadCalendar()
+    }
+
   const calendars =
     calendarData.calendars ?? []
 
@@ -499,6 +516,16 @@ function CalendarWorkspace({
           </div>
 
           <div className="calendar-hero-actions">
+            <button
+              type="button"
+              className="calendar-add-event-action"
+              onClick={() =>
+                openNewEvent()
+              }
+            >
+              + Add Event
+            </button>
+
             <button
               type="button"
               className="calendar-secondary-action"
@@ -576,9 +603,9 @@ function CalendarWorkspace({
 
             <select
               value={selectedCalendarId}
-              onChange={(event) =>
+              onChange={(changeEvent) =>
                 setSelectedCalendarId(
-                  event.target.value,
+                  changeEvent.target.value,
                 )
               }
             >
@@ -636,8 +663,7 @@ function CalendarWorkspace({
                   selectedDateKey
 
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={day.key}
                     className={[
                       'calendar-day-cell',
@@ -653,23 +679,31 @@ function CalendarWorkspace({
                     ]
                       .filter(Boolean)
                       .join(' ')}
-                    onClick={() =>
-                      setSelectedDate(
-                        day.date,
-                      )
-                    }
                   >
-                    <span className="calendar-day-number">
-                      {day.dayNumber}
-                    </span>
+                    <button
+                      type="button"
+                      className="calendar-day-select"
+                      onClick={() =>
+                        setSelectedDate(
+                          day.date,
+                        )
+                      }
+                      aria-label={`Select ${day.key}`}
+                    >
+                      <span className="calendar-day-number">
+                        {day.dayNumber}
+                      </span>
+                    </button>
 
                     <div className="calendar-day-items">
                       {dayEvents
                         .slice(0, 2)
                         .map((event) => (
-                          <span
+                          <button
+                            type="button"
                             key={`event-${event.id}`}
                             className="calendar-mini-item google"
+                            title={`Edit ${event.title}`}
                             style={
                               event.color
                                 ? {
@@ -684,9 +718,14 @@ function CalendarWorkspace({
                                   }
                                 : undefined
                             }
+                            onClick={() =>
+                              openExistingEvent(
+                                event,
+                              )
+                            }
                           >
                             {event.title}
-                          </span>
+                          </button>
                         ))}
 
                       {dayTasks
@@ -699,27 +738,41 @@ function CalendarWorkspace({
                           ),
                         )
                         .map((task) => (
-                          <span
+                          <button
+                            type="button"
                             key={`task-${task.id}`}
                             className="calendar-mini-item task"
+                            onClick={() =>
+                              onOpenTask(
+                                task.id,
+                              )
+                            }
                           >
                             {task.title}
-                          </span>
+                          </button>
                         ))}
 
                       {dayEvents.length +
                         dayTasks.length >
                         2 && (
-                        <span className="calendar-more-count">
+                        <button
+                          type="button"
+                          className="calendar-more-count"
+                          onClick={() =>
+                            setSelectedDate(
+                              day.date,
+                            )
+                          }
+                        >
                           +
                           {dayEvents.length +
                             dayTasks.length -
                             2}{' '}
                           more
-                        </span>
+                        </button>
                       )}
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -727,13 +780,26 @@ function CalendarWorkspace({
 
           <aside className="calendar-day-panel">
             <div className="calendar-day-panel-header">
-              <span>DAY VIEW</span>
+              <div>
+                <span>DAY VIEW</span>
 
-              <h3>
-                {formatSelectedDay(
-                  selectedDate,
-                )}
-              </h3>
+                <h3>
+                  {formatSelectedDay(
+                    selectedDate,
+                  )}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                className="calendar-day-add"
+                aria-label="Add event on selected day"
+                onClick={() =>
+                  openNewEvent()
+                }
+              >
+                +
+              </button>
             </div>
 
             <div className="calendar-day-summary">
@@ -760,9 +826,15 @@ function CalendarWorkspace({
                     getEventTextColor(event)
 
                   return (
-                    <article
+                    <button
+                      type="button"
                       className="calendar-agenda-item google"
                       key={`agenda-event-${event.id}`}
+                      onClick={() =>
+                        openExistingEvent(
+                          event,
+                        )
+                      }
                       style={
                         event.color
                           ? {
@@ -854,26 +926,8 @@ function CalendarWorkspace({
                             {event.description}
                           </p>
                         )}
-
-                        {event.link && (
-                          <a
-                            href={event.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={
-                              event.color
-                                ? {
-                                    color:
-                                      eventTextColor,
-                                  }
-                                : undefined
-                            }
-                          >
-                            Open in Google
-                          </a>
-                        )}
                       </div>
-                    </article>
+                    </button>
                   )
                 },
               )}
@@ -930,6 +984,15 @@ function CalendarWorkspace({
                       This day is clear right
                       now.
                     </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openNewEvent()
+                      }
+                    >
+                      + Add an event
+                    </button>
                   </div>
                 )}
             </div>
@@ -960,6 +1023,29 @@ function CalendarWorkspace({
           onSaved={() =>
             void loadCalendar()
           }
+        />
+      )}
+
+      {showEventEditor && (
+        <CalendarEventEditor
+          mode={
+            editingEvent
+              ? 'edit'
+              : 'create'
+          }
+          initialDate={
+            editingEvent
+              ? getDateKeyFromValue(
+                  editingEvent.start,
+                ) ??
+                selectedDateKey
+              : selectedDateKey
+          }
+          event={editingEvent}
+          calendars={calendars}
+          colors={calendarData.eventColors ?? []}
+          onClose={closeEventEditor}
+          onSaved={handleEventSaved}
         />
       )}
     </section>
