@@ -5,6 +5,7 @@ import frankieMain from '../assets/frankie/frankie-main.png'
 import frankieConversation from '../assets/frankie/frankie-conversation.png'
 import { supabase } from '../lib/supabase'
 import CalendarWorkspace from '../components/CalendarWorkspace'
+import EmailAccountsConnection from '../components/EmailAccountsConnection'
 import type {
   CalendarBusiness,
   CalendarTask,
@@ -1854,19 +1855,7 @@ function HomePage() {
                       </span>
                     </div>
 
-                    <div className="connection-capability-row future">
-                      <div>
-                        <strong>Gmail</strong>
-                        <span>
-                          Email connection will be added when we build
-                          the Email workspace.
-                        </span>
-                      </div>
-
-                      <span className="capability-status future">
-                        Coming later
-                      </span>
-                    </div>
+                    <EmailAccountsConnection />
                   </div>
 
                   <div className="connection-provider-actions">
