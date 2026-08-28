@@ -63,16 +63,32 @@ type ZohoContentResponse = {
   }
 }
 
+type ZohoAttachmentInfo = {
+  attachmentSize?: number | string
+  attachmentName?: string
+  attachmentId?: string | number
+}
+
+type ZohoAttachmentInfoResponse = {
+  status?: ZohoStatus
+  data?: {
+    attachments?: ZohoAttachmentInfo[]
+    inline?: Array<
+      ZohoAttachmentInfo & {
+        cid?: string
+      }
+    >
+    messageId?: string | number
+  }
+}
+
 function getRequiredEnv(
   name: string,
 ): string {
-  const value =
-    process.env[name]
+  const value = process.env[name]
 
   if (!value) {
-    throw new Error(
-      `Missing ${name}`,
-    )
+    throw new Error(`Missing ${name}`)
   }
 
   return value
@@ -82,9 +98,7 @@ function getBearerToken(
   request: Request,
 ): string | null {
   const authorization =
-    request.headers.get(
-      'authorization',
-    )
+    request.headers.get('authorization')
 
   if (
     !authorization?.startsWith(
@@ -96,9 +110,7 @@ function getBearerToken(
 
   return (
     authorization
-      .slice(
-        'Bearer '.length,
-      )
+      .slice('Bearer '.length)
       .trim() || null
   )
 }
@@ -119,28 +131,22 @@ async function refreshZohoAccessToken(
   accessToken: string
   expiresAt: string
 }> {
-  const response =
-    await fetch(
-      `${getZohoAccountsBase()}/oauth/v2/token`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':
-            'application/x-www-form-urlencoded',
-        },
-        body:
-          new URLSearchParams({
-            refresh_token:
-              refreshToken,
-            client_id:
-              clientId,
-            client_secret:
-              clientSecret,
-            grant_type:
-              'refresh_token',
-          }),
+  const response = await fetch(
+    `${getZohoAccountsBase()}/oauth/v2/token`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type':
+          'application/x-www-form-urlencoded',
       },
-    )
+      body: new URLSearchParams({
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'refresh_token',
+      }),
+    },
+  )
 
   const data =
     (await response.json()) as
@@ -161,38 +167,29 @@ async function refreshZohoAccessToken(
   }
 
   return {
-    accessToken:
-      data.access_token,
+    accessToken: data.access_token,
 
-    expiresAt:
-      new Date(
-        Date.now() +
-          (data.expires_in ??
-            3600) *
-            1000,
-      ).toISOString(),
+    expiresAt: new Date(
+      Date.now() +
+        (data.expires_in ?? 3600) *
+          1000,
+    ).toISOString(),
   }
 }
 
 function parseZohoTimestamp(
-  value:
-    | string
-    | undefined,
+  value: string | undefined,
 ): string | null {
   if (!value) {
     return null
   }
 
-  const numeric =
-    Number(value)
+  const numeric = Number(value)
 
   if (
-    Number.isFinite(
-      numeric,
-    )
+    Number.isFinite(numeric)
   ) {
-    const date =
-      new Date(numeric)
+    const date = new Date(numeric)
 
     if (
       !Number.isNaN(
@@ -203,8 +200,7 @@ function parseZohoTimestamp(
     }
   }
 
-  const parsed =
-    new Date(value)
+  const parsed = new Date(value)
 
   if (
     Number.isNaN(
@@ -221,34 +217,13 @@ function decodeHtmlEntities(
   value: string,
 ): string {
   return value
-    .replace(
-      /&nbsp;/gi,
-      ' ',
-    )
-    .replace(
-      /&amp;/gi,
-      '&',
-    )
-    .replace(
-      /&lt;/gi,
-      '<',
-    )
-    .replace(
-      /&gt;/gi,
-      '>',
-    )
-    .replace(
-      /&quot;/gi,
-      '"',
-    )
-    .replace(
-      /&#39;/gi,
-      "'",
-    )
-    .replace(
-      /&apos;/gi,
-      "'",
-    )
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
     .replace(
       /&#(\d+);/g,
       (
@@ -274,10 +249,7 @@ function decodeHtmlEntities(
         hex: string,
       ) => {
         const code =
-          parseInt(
-            hex,
-            16,
-          )
+          parseInt(hex, 16)
 
         return Number.isFinite(
           code,
@@ -356,9 +328,7 @@ function stripHtml(
 }
 
 function cleanAddress(
-  value:
-    | string
-    | undefined,
+  value: string | undefined,
 ): string | null {
   if (!value) {
     return null
@@ -381,24 +351,40 @@ function cleanAddress(
 }
 
 function isUnread(
-  status:
-    | string
-    | undefined,
+  status: string | undefined,
 ): boolean {
   return status === '0'
 }
 
 function isImportant(
-  flagId:
-    | string
-    | undefined,
+  flagId: string | undefined,
 ): boolean {
   return (
-    flagId ===
-      'important' ||
-    flagId ===
-      'followup'
+    flagId === 'important' ||
+    flagId === 'followup'
   )
+}
+
+function hasAttachment(
+  value: string | undefined,
+): boolean {
+  return (
+    value === '1' ||
+    value === 'true'
+  )
+}
+
+function parseAttachmentSize(
+  value:
+    | number
+    | string
+    | undefined,
+): number {
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0
 }
 
 export default {
@@ -406,8 +392,7 @@ export default {
     request: Request,
   ): Promise<Response> {
     if (
-      request.method !==
-      'GET'
+      request.method !== 'GET'
     ) {
       return Response.json(
         {
@@ -422,9 +407,7 @@ export default {
 
     try {
       const requestUrl =
-        new URL(
-          request.url,
-        )
+        new URL(request.url)
 
       const supabaseUrl =
         getRequiredEnv(
@@ -447,9 +430,7 @@ export default {
         )
 
       const frankieAccessToken =
-        getBearerToken(
-          request,
-        )
+        getBearerToken(request)
 
       if (
         !frankieAccessToken
@@ -466,19 +447,19 @@ export default {
       }
 
       const accountId =
-        requestUrl.searchParams.get(
-          'accountId',
-        )
+        requestUrl
+          .searchParams
+          .get('accountId')
 
       const messageId =
-        requestUrl.searchParams.get(
-          'messageId',
-        )
+        requestUrl
+          .searchParams
+          .get('messageId')
 
       const folderId =
-        requestUrl.searchParams.get(
-          'folderId',
-        )
+        requestUrl
+          .searchParams
+          .get('folderId')
 
       if (!accountId) {
         return Response.json(
@@ -531,11 +512,8 @@ export default {
         )
 
       const {
-        data: {
-          user,
-        },
-        error:
-          userError,
+        data: { user },
+        error: userError,
       } =
         await supabaseAdmin
           .auth
@@ -559,10 +537,8 @@ export default {
       }
 
       const {
-        data:
-          accountData,
-        error:
-          accountError,
+        data: accountData,
+        error: accountError,
       } =
         await supabaseAdmin
           .from(
@@ -624,10 +600,8 @@ export default {
           EmailAccountRow
 
       const {
-        data:
-          tokenData,
-        error:
-          tokenError,
+        data: tokenData,
+        error: tokenError,
       } =
         await supabaseAdmin
           .from(
@@ -685,12 +659,9 @@ export default {
           expiresAtMs,
         ) ||
         expiresAtMs <=
-          Date.now() +
-            60_000
+          Date.now() + 60_000
 
-      if (
-        shouldRefresh
-      ) {
+      if (shouldRefresh) {
         if (
           !token.refresh_token
         ) {
@@ -701,8 +672,10 @@ export default {
             .update({
               status:
                 'reauthorization_required',
+
               last_error:
                 'Zoho authorization expired and no refresh token is available.',
+
               updated_at:
                 new Date()
                   .toISOString(),
@@ -735,8 +708,7 @@ export default {
             refreshed.accessToken
 
           const {
-            error:
-              saveError,
+            error: saveError,
           } =
             await supabaseAdmin
               .from(
@@ -746,9 +718,11 @@ export default {
                 access_token:
                   refreshed
                     .accessToken,
+
                 expires_at:
                   refreshed
                     .expiresAt,
+
                 updated_at:
                   new Date()
                     .toISOString(),
@@ -762,9 +736,7 @@ export default {
                 user.id,
               )
 
-          if (
-            saveError
-          ) {
+          if (saveError) {
             console.error(
               'Frankie Zoho refreshed detail token save failed:',
               saveError,
@@ -780,8 +752,10 @@ export default {
             .update({
               status:
                 'reauthorization_required',
+
               last_error:
                 'Zoho authorization must be renewed.',
+
               updated_at:
                 new Date()
                   .toISOString(),
@@ -821,15 +795,16 @@ export default {
       const headers = {
         Accept:
           'application/json',
+
         Authorization:
           `Zoho-oauthtoken ${zohoAccessToken}`,
       }
 
       /*
-       * Zoho separates email
-       * metadata from email
-       * content, so retrieve
-       * both in parallel.
+       * Metadata and HTML body
+       * are independent Zoho
+       * requests, so retrieve
+       * them together.
        */
       const [
         metadataResponse,
@@ -938,6 +913,116 @@ export default {
           : metadata.summary ??
             ''
 
+      /*
+       * Only make the extra
+       * Zoho attachment-info
+       * request when Zoho says
+       * this message actually
+       * has attachments.
+       *
+       * Attachment-info failure
+       * does NOT prevent the
+       * email itself from opening.
+       */
+      let attachments: Array<{
+        filename: string
+        mimeType: string | null
+        size: number
+        attachmentId: string | null
+      }> = []
+
+      if (
+        hasAttachment(
+          metadata.hasAttachment,
+        )
+      ) {
+        try {
+          const attachmentResponse =
+            await fetch(
+              `${messageBase}/attachmentinfo?includeInline=false`,
+              {
+                cache:
+                  'no-store',
+                headers,
+              },
+            )
+
+          const attachmentData =
+            (await attachmentResponse.json()) as
+              ZohoAttachmentInfoResponse
+
+          if (
+            attachmentResponse.ok &&
+            attachmentData
+              .status
+              ?.code === 200
+          ) {
+            attachments =
+              (
+                attachmentData
+                  .data
+                  ?.attachments ??
+                []
+              )
+                .filter(
+                  (attachment) =>
+                    Boolean(
+                      attachment
+                        .attachmentName,
+                    ),
+                )
+                .map(
+                  (
+                    attachment,
+                  ) => ({
+                    filename:
+                      attachment
+                        .attachmentName ??
+                      'Attachment',
+
+                    /*
+                     * Zoho's
+                     * attachment-info
+                     * response does
+                     * not provide a
+                     * MIME type.
+                     */
+                    mimeType:
+                      null,
+
+                    size:
+                      parseAttachmentSize(
+                        attachment
+                          .attachmentSize,
+                      ),
+
+                    attachmentId:
+                      attachment
+                        .attachmentId !==
+                      undefined
+                        ? String(
+                            attachment
+                              .attachmentId,
+                          )
+                        : null,
+                  }),
+                )
+          } else {
+            console.error(
+              'Frankie Zoho attachment info failed:',
+              attachmentData,
+            )
+          }
+        } catch (
+          attachmentError
+        ) {
+          console.error(
+            'Frankie Zoho attachment info request failed:',
+            attachmentError,
+          )
+        }
+      }
+
       const resolvedMessageId =
         String(
           metadata.messageId ??
@@ -1022,16 +1107,7 @@ export default {
 
         labels: [],
 
-        /*
-         * Attachment metadata
-         * gets its own Zoho
-         * endpoint. We are
-         * deliberately keeping
-         * this first detail test
-         * focused on rendering
-         * the actual message.
-         */
-        attachments: [],
+        attachments,
 
         internetMessageId:
           null,
@@ -1051,8 +1127,10 @@ export default {
           last_synced_at:
             new Date()
               .toISOString(),
+
           last_error:
             null,
+
           updated_at:
             new Date()
               .toISOString(),
@@ -1083,9 +1161,7 @@ export default {
           ],
         },
       })
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.error(
         'Frankie Zoho message detail error:',
         error,
