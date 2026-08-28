@@ -98,72 +98,35 @@ function formatMessageTime(value: string | null) {
   if (Number.isNaN(date.getTime())) return ''
 
   const now = new Date()
-  const sameDay =
-    date.toDateString() === now.toDateString()
+  const sameDay = date.toDateString() === now.toDateString()
 
   return new Intl.DateTimeFormat(
     'en-US',
     sameDay
-      ? {
-          hour: 'numeric',
-          minute: '2-digit',
-        }
-      : date.getFullYear() ===
-          now.getFullYear()
-        ? {
-            month: 'short',
-            day: 'numeric',
-          }
-        : {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          },
+      ? { hour: 'numeric', minute: '2-digit' }
+      : date.getFullYear() === now.getFullYear()
+        ? { month: 'short', day: 'numeric' }
+        : { month: 'short', day: 'numeric', year: 'numeric' },
   ).format(date)
 }
 
-function cleanSender(
-  value: string | null,
-) {
-  if (!value) {
-    return 'Unknown sender'
-  }
+function cleanSender(value: string | null) {
+  if (!value) return 'Unknown sender'
 
-  const match =
-    value.match(
-      /^"?([^"<]+?)"?\s*<[^>]+>$/,
-    )
-
-  return (
-    match?.[1]?.trim() ||
-    value.trim()
+  const match = value.match(
+    /^"?([^"<]+?)"?\s*<[^>]+>$/,
   )
+
+  return match?.[1]?.trim() || value.trim()
 }
 
-function buildEmailDocument(
-  html: string,
-): string {
+function buildEmailDocument(html: string): string {
   const safeHtml = html
-    .replace(
-      /<script[\s\S]*?<\/script>/gi,
-      '',
-    )
-    .replace(
-      /<iframe[\s\S]*?<\/iframe>/gi,
-      '',
-    )
-    .replace(
-      /<object[\s\S]*?<\/object>/gi,
-      '',
-    )
-    .replace(
-      /<embed\b[^>]*>/gi,
-      '',
-    )
-    .replace(
-      /<form[\s\S]*?<\/form>/gi,
-      '',
-    )
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<form[\s\S]*?<\/form>/gi, '')
 
   const securityHead = `
     <meta
@@ -206,22 +169,14 @@ function buildEmailDocument(
     </style>
   `
 
-  if (
-    /<head[\s>]/i.test(
-      safeHtml,
-    )
-  ) {
+  if (/<head[\s>]/i.test(safeHtml)) {
     return safeHtml.replace(
       /<head([^>]*)>/i,
       `<head$1>${securityHead}`,
     )
   }
 
-  if (
-    /<html[\s>]/i.test(
-      safeHtml,
-    )
-  ) {
+  if (/<html[\s>]/i.test(safeHtml)) {
     return safeHtml.replace(
       /<html([^>]*)>/i,
       `<html$1><head>${securityHead}</head>`,
@@ -236,560 +191,316 @@ function buildEmailDocument(
 }
 
 function EmailWorkspace() {
-  const [
-    accounts,
-    setAccounts,
-  ] =
-    useState<
-      EmailAccount[]
-    >([])
+  const [accounts, setAccounts] = useState<EmailAccount[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState('')
+  const [messages, setMessages] = useState<EmailMessage[]>([])
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [unreadOnly, setUnreadOnly] = useState(false)
 
-  const [
-    selectedAccountId,
-    setSelectedAccountId,
-  ] = useState('')
+  const [selectedMessage, setSelectedMessage] =
+    useState<EmailMessage | null>(null)
 
-  const [
-    messages,
-    setMessages,
-  ] =
-    useState<
-      EmailMessage[]
-    >([])
+  const [detailMessages, setDetailMessages] =
+    useState<DetailMessage[]>([])
 
-  const [
-    isLoadingAccounts,
-    setIsLoadingAccounts,
-  ] =
-    useState(true)
-
-  const [
-    isLoadingMessages,
-    setIsLoadingMessages,
-  ] =
+  const [isLoadingDetail, setIsLoadingDetail] =
     useState(false)
 
-  const [
-    error,
-    setError,
-  ] =
-    useState<
-      string | null
-    >(null)
+  const [detailError, setDetailError] =
+    useState<string | null>(null)
 
-  const [
-    search,
-    setSearch,
-  ] = useState('')
+  const selectedAccount = useMemo(
+    () =>
+      accounts.find(
+        (account) => account.id === selectedAccountId,
+      ) ?? null,
+    [accounts, selectedAccountId],
+  )
 
-  const [
-    unreadOnly,
-    setUnreadOnly,
-  ] =
-    useState(false)
+  const visibleMessages = useMemo(() => {
+    const term = search.trim().toLowerCase()
 
-  const [
-    selectedMessage,
-    setSelectedMessage,
-  ] =
-    useState<
-      EmailMessage | null
-    >(null)
+    return messages.filter((message) => {
+      if (unreadOnly && !message.unread) return false
+      if (!term) return true
 
-  const [
-    detailMessages,
-    setDetailMessages,
-  ] =
-    useState<
-      DetailMessage[]
-    >([])
+      return [
+        message.from ?? '',
+        message.subject,
+        message.snippet,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(term)
+    })
+  }, [messages, search, unreadOnly])
 
-  const [
-    isLoadingDetail,
-    setIsLoadingDetail,
-  ] =
-    useState(false)
+  const unreadCount = useMemo(
+    () => messages.filter((message) => message.unread).length,
+    [messages],
+  )
 
-  const [
-    detailError,
-    setDetailError,
-  ] =
-    useState<
-      string | null
-    >(null)
+  const attachmentCount = useMemo(
+    () =>
+      messages.filter(
+        (message) => message.hasAttachments,
+      ).length,
+    [messages],
+  )
 
-  const selectedAccount =
-    useMemo(
-      () =>
-        accounts.find(
-          (
-            account,
-          ) =>
-            account.id ===
-            selectedAccountId,
-        ) ?? null,
-      [
-        accounts,
-        selectedAccountId,
-      ],
-    )
+  const getAccessToken = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-  const visibleMessages =
-    useMemo(() => {
-      const term =
-        search
-          .trim()
-          .toLowerCase()
-
-      return messages.filter(
-        (
-          message,
-        ) => {
-          if (
-            unreadOnly &&
-            !message.unread
-          ) {
-            return false
-          }
-
-          if (!term) {
-            return true
-          }
-
-          return [
-            message.from ??
-              '',
-            message.subject,
-            message.snippet,
-          ]
-            .join(' ')
-            .toLowerCase()
-            .includes(term)
-        },
-      )
-    }, [
-      messages,
-      search,
-      unreadOnly,
-    ])
-
-  const unreadCount =
-    useMemo(
-      () =>
-        messages.filter(
-          (
-            message,
-          ) =>
-            message.unread,
-        ).length,
-      [messages],
-    )
-
-  const attachmentCount =
-    useMemo(
-      () =>
-        messages.filter(
-          (
-            message,
-          ) =>
-            message
-              .hasAttachments,
-        ).length,
-      [messages],
-    )
-
-  const getAccessToken =
-    async () => {
-      const {
-        data: {
-          session,
-        },
-      } =
-        await supabase
-          .auth
-          .getSession()
-
-      if (
-        !session?.access_token
-      ) {
-        throw new Error(
-          'Your Frankie session is missing.',
-        )
-      }
-
-      return session.access_token
+    if (!session?.access_token) {
+      throw new Error('Your Frankie session is missing.')
     }
 
-  const getAccountById = (
-    accountId: string,
-  ) =>
+    return session.access_token
+  }
+
+  const getAccountById = (accountId: string) =>
     accounts.find(
-      (
-        account,
-      ) =>
-        account.id ===
-        accountId,
+      (account) => account.id === accountId,
     ) ?? null
 
-  const loadMessages =
-    async (
-      accountId: string,
-    ) => {
-      if (!accountId) {
-        setMessages([])
-        return
-      }
+  const loadMessages = async (accountId: string) => {
+    if (!accountId) {
+      setMessages([])
+      return
+    }
 
-      const account =
-        getAccountById(
-          accountId,
-        )
+    const account = getAccountById(accountId)
 
-      if (!account) {
-        setMessages([])
-        setError(
-          'Frankie could not identify this email account.',
-        )
-        return
-      }
-
-      setIsLoadingMessages(
-        true,
+    if (!account) {
+      setMessages([])
+      setError(
+        'Frankie could not identify this email account.',
       )
-      setError(null)
+      return
+    }
 
-      try {
-        const accessToken =
-          await getAccessToken()
+    setIsLoadingMessages(true)
+    setError(null)
 
-        const params =
-          new URLSearchParams(
-            {
-              accountId,
-              maxResults:
-                '25',
-            },
-          )
+    try {
+      const accessToken = await getAccessToken()
 
-        const endpoint =
-          account.provider ===
-          'zoho'
-            ? '/api/zoho/email-messages'
-            : '/api/google/email-messages'
+      const params = new URLSearchParams({
+        accountId,
+        maxResults: '25',
+      })
 
-        const response =
-          await fetch(
-            `${endpoint}?${params.toString()}`,
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${accessToken}`,
-              },
-            },
-          )
+      const endpoint =
+        account.provider === 'zoho'
+          ? '/api/zoho/email-messages'
+          : '/api/google/email-messages'
 
-        const data =
-          (await response.json()) as
-            EmailMessagesResponse
+      const response = await fetch(
+        `${endpoint}?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      )
 
-        if (
-          !response.ok
-        ) {
+      const data =
+        (await response.json()) as EmailMessagesResponse
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ??
+            'Frankie could not read this inbox.',
+        )
+      }
+
+      setMessages(data.messages ?? [])
+    } catch (loadError) {
+      console.error(
+        'Frankie Email workspace message load error:',
+        loadError,
+      )
+
+      setMessages([])
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Frankie could not read this inbox.',
+      )
+    } finally {
+      setIsLoadingMessages(false)
+    }
+  }
+
+  const loadAccounts = async () => {
+    setIsLoadingAccounts(true)
+    setError(null)
+
+    try {
+      const accessToken = await getAccessToken()
+
+      const response = await fetch(
+        '/api/google/email-accounts',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      )
+
+      const data =
+        (await response.json()) as EmailAccountsResponse
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ??
+            'Frankie could not load your connected email accounts.',
+        )
+      }
+
+      const nextAccounts = (data.accounts ?? [])
+        .filter(
+          (account) =>
+            account.status === 'active' &&
+            account.isEnabled,
+        )
+        .filter(
+          (account) =>
+            account.provider === 'google' ||
+            account.provider === 'zoho',
+        )
+        .map(
+          (account): EmailAccount => ({
+            id: account.id,
+            provider: account.provider as EmailProvider,
+            emailAddress: account.emailAddress,
+            accountLabel: account.accountLabel,
+            accountType: account.accountType,
+            businessId: account.businessId,
+          }),
+        )
+
+      setAccounts(nextAccounts)
+
+      setSelectedAccountId((current) =>
+        nextAccounts.some(
+          (account) => account.id === current,
+        )
+          ? current
+          : nextAccounts[0]?.id ?? '',
+      )
+    } catch (loadError) {
+      console.error(
+        'Frankie Email workspace account load error:',
+        loadError,
+      )
+
+      setAccounts([])
+      setSelectedAccountId('')
+      setMessages([])
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Frankie could not load your connected email accounts.',
+      )
+    } finally {
+      setIsLoadingAccounts(false)
+    }
+  }
+
+  const openMessage = async (message: EmailMessage) => {
+    const account = getAccountById(selectedAccountId)
+
+    if (!account) {
+      return
+    }
+
+    setSelectedMessage(message)
+    setDetailMessages([])
+    setDetailError(null)
+    setIsLoadingDetail(true)
+
+    try {
+      const accessToken = await getAccessToken()
+
+      const params = new URLSearchParams({
+        accountId: selectedAccountId,
+        messageId: message.id,
+      })
+
+      if (account.provider === 'zoho') {
+        if (!message.folderId) {
           throw new Error(
-            data.error ??
-              'Frankie could not read this inbox.',
+            'Zoho did not return the folder information needed to open this email.',
           )
         }
 
-        setMessages(
-          data.messages ??
-            [],
-        )
-      } catch (
-        loadError
-      ) {
-        console.error(
-          'Frankie Email workspace message load error:',
-          loadError,
-        )
+        params.set('folderId', message.folderId)
+      }
 
-        setMessages([])
+      const endpoint =
+        account.provider === 'zoho'
+          ? '/api/zoho/email-message-detail'
+          : '/api/google/email-message-detail'
 
-        setError(
-          loadError instanceof
-            Error
-            ? loadError.message
-            : 'Frankie could not read this inbox.',
-        )
-      } finally {
-        setIsLoadingMessages(
-          false,
+      const response = await fetch(
+        `${endpoint}?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      )
+
+      const data =
+        (await response.json()) as EmailDetailResponse
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ??
+            'Frankie could not open this email.',
         )
       }
-    }
 
-  const loadAccounts =
-    async () => {
-      setIsLoadingAccounts(
-        true,
-      )
-      setError(null)
-
-      try {
-        const accessToken =
-          await getAccessToken()
-
-        const response =
-          await fetch(
-            '/api/google/email-accounts',
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${accessToken}`,
-              },
-            },
-          )
-
-        const data =
-          (await response.json()) as
-            EmailAccountsResponse
-
-        if (
-          !response.ok
-        ) {
-          throw new Error(
-            data.error ??
-              'Frankie could not load your connected email accounts.',
-          )
-        }
-
-        const nextAccounts =
-          (
-            data.accounts ??
-            []
-          )
-            .filter(
-              (
-                account,
-              ) =>
-                account.status ===
-                  'active' &&
-                account.isEnabled,
-            )
-            .filter(
-              (
-                account,
-              ) =>
-                account.provider ===
-                  'google' ||
-                account.provider ===
-                  'zoho',
-            )
-            .map(
-              (
-                account,
-              ): EmailAccount => ({
-                id:
-                  account.id,
-                provider:
-                  account.provider as
-                    EmailProvider,
-                emailAddress:
-                  account.emailAddress,
-                accountLabel:
-                  account.accountLabel,
-                accountType:
-                  account.accountType,
-                businessId:
-                  account.businessId,
-              }),
-            )
-
-        setAccounts(
-          nextAccounts,
-        )
-
-        setSelectedAccountId(
-          (
-            current,
-          ) =>
-            nextAccounts.some(
-              (
-                account,
-              ) =>
-                account.id ===
-                current,
-            )
-              ? current
-              : nextAccounts[
-                  0
-                ]?.id ??
-                '',
-        )
-      } catch (
-        loadError
-      ) {
-        console.error(
-          'Frankie Email workspace account load error:',
-          loadError,
-        )
-
-        setAccounts([])
-        setSelectedAccountId(
-          '',
-        )
-        setMessages([])
-
-        setError(
-          loadError instanceof
-            Error
-            ? loadError.message
-            : 'Frankie could not load your connected email accounts.',
-        )
-      } finally {
-        setIsLoadingAccounts(
-          false,
-        )
-      }
-    }
-
-  const openMessage =
-    async (
-      message: EmailMessage,
-    ) => {
-      const account =
-        getAccountById(
-          selectedAccountId,
-        )
-
-      setSelectedMessage(
-        message,
-      )
       setDetailMessages(
-        [],
+        data.thread?.messages ?? [],
       )
+    } catch (loadError) {
+      console.error(
+        'Frankie Email detail load error:',
+        loadError,
+      )
+
       setDetailError(
-        null,
+        loadError instanceof Error
+          ? loadError.message
+          : 'Frankie could not open this email.',
       )
-
-      /*
-       * Zoho detail is deliberately
-       * not wired yet.
-       *
-       * This first test proves that
-       * the Zoho Inbox list endpoint
-       * is working before we add
-       * full-message retrieval.
-       */
-      if (
-        account?.provider ===
-        'zoho'
-      ) {
-        setIsLoadingDetail(
-          false,
-        )
-
-        setDetailError(
-          'Zoho Inbox retrieval is connected. Full Zoho message opening is the next step.',
-        )
-
-        return
-      }
-
-      setIsLoadingDetail(
-        true,
-      )
-
-      try {
-        const accessToken =
-          await getAccessToken()
-
-        const params =
-          new URLSearchParams(
-            {
-              accountId:
-                selectedAccountId,
-              messageId:
-                message.id,
-            },
-          )
-
-        const response =
-          await fetch(
-            `/api/google/email-message-detail?${params.toString()}`,
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${accessToken}`,
-              },
-            },
-          )
-
-        const data =
-          (await response.json()) as
-            EmailDetailResponse
-
-        if (
-          !response.ok
-        ) {
-          throw new Error(
-            data.error ??
-              'Frankie could not open this email.',
-          )
-        }
-
-        setDetailMessages(
-          data.thread
-            ?.messages ??
-            [],
-        )
-      } catch (
-        loadError
-      ) {
-        console.error(
-          'Frankie Email detail load error:',
-          loadError,
-        )
-
-        setDetailError(
-          loadError instanceof
-            Error
-            ? loadError.message
-            : 'Frankie could not open this email.',
-        )
-      } finally {
-        setIsLoadingDetail(
-          false,
-        )
-      }
+    } finally {
+      setIsLoadingDetail(false)
     }
+  }
 
   useEffect(() => {
     void loadAccounts()
   }, [])
 
   useEffect(() => {
-    setSelectedMessage(
-      null,
-    )
-    setDetailMessages(
-      [],
-    )
-    setDetailError(
-      null,
-    )
+    setSelectedMessage(null)
+    setDetailMessages([])
+    setDetailError(null)
 
-    if (
-      selectedAccountId
-    ) {
-      void loadMessages(
-        selectedAccountId,
-      )
+    if (selectedAccountId) {
+      void loadMessages(selectedAccountId)
     }
-  }, [
-    selectedAccountId,
-    accounts,
-  ])
+  }, [selectedAccountId, accounts])
 
   return (
     <section className="email-workspace-panel">
@@ -797,22 +508,14 @@ function EmailWorkspace() {
         <div className="email-hero">
           <div>
             <span className="email-eyebrow">
-              INBOX
-              INTELLIGENCE
+              INBOX INTELLIGENCE
             </span>
 
             <h2>Email</h2>
 
             <p>
-              Frankie is
-              reading only
-              right now —
-              nothing can be
-              archived,
-              deleted,
-              labeled, or
-              sent from this
-              screen yet.
+              Frankie is reading only right now — nothing can be
+              archived, deleted, labeled, or sent from this screen yet.
             </p>
           </div>
 
@@ -823,50 +526,30 @@ function EmailWorkspace() {
 
             <select
               id="email-account-select"
-              value={
-                selectedAccountId
-              }
+              value={selectedAccountId}
               disabled={
                 isLoadingAccounts ||
-                accounts.length ===
-                  0
+                accounts.length === 0
               }
-              onChange={(
-                event,
-              ) =>
+              onChange={(event) =>
                 setSelectedAccountId(
-                  event
-                    .target
-                    .value,
+                  event.target.value,
                 )
               }
             >
-              {accounts.length ===
-              0 ? (
+              {accounts.length === 0 ? (
                 <option value="">
-                  No
-                  connected
-                  inbox
+                  No connected inbox
                 </option>
               ) : (
-                accounts.map(
-                  (
-                    account,
-                  ) => (
-                    <option
-                      key={
-                        account.id
-                      }
-                      value={
-                        account.id
-                      }
-                    >
-                      {
-                        account.emailAddress
-                      }
-                    </option>
-                  ),
-                )
+                accounts.map((account) => (
+                  <option
+                    key={account.id}
+                    value={account.id}
+                  >
+                    {account.emailAddress}
+                  </option>
+                ))
               )}
             </select>
           </div>
@@ -874,112 +557,58 @@ function EmailWorkspace() {
 
         {error && (
           <div className="email-error">
-            <strong>
-              Email needs
-              attention
-            </strong>
-            <p>
-              {error}
-            </p>
+            <strong>Email needs attention</strong>
+            <p>{error}</p>
           </div>
         )}
 
-        {accounts.length ===
-          0 &&
+        {accounts.length === 0 &&
         !isLoadingAccounts ? (
           <div className="email-empty-state">
-            <span>
-              ✉
-            </span>
-            <h3>
-              No email
-              inbox is
-              connected.
-            </h3>
+            <span>✉</span>
+            <h3>No email inbox is connected.</h3>
             <p>
-              Connect an
-              inbox from
-              Connections
-              before Frankie
-              can read email
-              here.
+              Connect an inbox from Connections before Frankie can
+              read email here.
             </p>
           </div>
         ) : (
           <>
             <div className="email-summary-strip">
               <div>
-                <strong>
-                  {
-                    messages.length
-                  }
-                </strong>
-                <span>
-                  Recent
-                  inbox
-                </span>
+                <strong>{messages.length}</strong>
+                <span>Recent inbox</span>
               </div>
 
               <div
                 className={
-                  unreadCount >
-                  0
-                    ? 'active'
-                    : ''
+                  unreadCount > 0 ? 'active' : ''
                 }
               >
-                <strong>
-                  {
-                    unreadCount
-                  }
-                </strong>
-                <span>
-                  Unread
-                </span>
+                <strong>{unreadCount}</strong>
+                <span>Unread</span>
               </div>
 
               <div>
-                <strong>
-                  {
-                    attachmentCount
-                  }
-                </strong>
-                <span>
-                  With
-                  attachments
-                </span>
+                <strong>{attachmentCount}</strong>
+                <span>With attachments</span>
               </div>
 
               <div className="email-readonly-badge">
-                <strong>
-                  Read only
-                </strong>
-                <span>
-                  Safe test
-                  mode
-                </span>
+                <strong>Read only</strong>
+                <span>Safe test mode</span>
               </div>
             </div>
 
             <div className="email-toolbar">
               <div className="email-search">
-                <span>
-                  ⌕
-                </span>
+                <span>⌕</span>
 
                 <input
-                  value={
-                    search
-                  }
+                  value={search}
                   placeholder="Search these recent messages..."
-                  onChange={(
-                    event,
-                  ) =>
-                    setSearch(
-                      event
-                        .target
-                        .value,
-                    )
+                  onChange={(event) =>
+                    setSearch(event.target.value)
                   }
                 />
               </div>
@@ -993,10 +622,7 @@ function EmailWorkspace() {
                 }
                 onClick={() =>
                   setUnreadOnly(
-                    (
-                      current,
-                    ) =>
-                      !current,
+                    (current) => !current,
                   )
                 }
               >
@@ -1026,139 +652,95 @@ function EmailWorkspace() {
               <div className="email-inbox-heading">
                 <div>
                   <strong>
-                    {selectedAccount
-                      ?.accountLabel ??
-                      selectedAccount
-                        ?.emailAddress ??
+                    {selectedAccount?.accountLabel ??
+                      selectedAccount?.emailAddress ??
                       'Inbox'}
                   </strong>
 
-                  {selectedAccount
-                    ?.accountLabel &&
-                    selectedAccount
-                      .accountLabel !==
-                      selectedAccount
-                        .emailAddress && (
+                  {selectedAccount?.accountLabel &&
+                    selectedAccount.accountLabel !==
+                      selectedAccount.emailAddress && (
                       <span>
-                        {
-                          selectedAccount.emailAddress
-                        }
+                        {selectedAccount.emailAddress}
                       </span>
                     )}
                 </div>
 
                 <span>
-                  {
-                    visibleMessages.length
-                  }{' '}
-                  shown
+                  {visibleMessages.length} shown
                 </span>
               </div>
 
               {isLoadingMessages ? (
                 <div className="email-loading">
                   <span className="email-loading-dot" />
-                  Reading recent
-                  inbox
-                  messages...
+                  Reading recent inbox messages...
                 </div>
-              ) : visibleMessages.length ===
-                0 ? (
+              ) : visibleMessages.length === 0 ? (
                 <div className="email-empty-list">
-                  <span>
-                    ✓
-                  </span>
+                  <span>✓</span>
                   <strong>
-                    No
-                    messages
-                    match
-                    this
-                    view.
+                    No messages match this view.
                   </strong>
                 </div>
               ) : (
                 <div className="email-message-list">
-                  {visibleMessages.map(
-                    (
-                      message,
-                    ) => (
-                      <button
-                        type="button"
-                        key={
-                          message.id
-                        }
-                        className={
-                          message.unread
-                            ? 'email-message-row unread'
-                            : 'email-message-row'
-                        }
-                        onClick={() =>
-                          void openMessage(
-                            message,
-                          )
-                        }
-                      >
-                        <span
-                          className="email-message-unread-dot"
-                          aria-hidden="true"
-                        />
+                  {visibleMessages.map((message) => (
+                    <button
+                      type="button"
+                      key={message.id}
+                      className={
+                        message.unread
+                          ? 'email-message-row unread'
+                          : 'email-message-row'
+                      }
+                      onClick={() =>
+                        void openMessage(message)
+                      }
+                    >
+                      <span
+                        className="email-message-unread-dot"
+                        aria-hidden="true"
+                      />
 
-                        <div className="email-message-main">
-                          <div className="email-message-topline">
-                            <strong>
-                              {cleanSender(
-                                message.from,
-                              )}
-                            </strong>
-
-                            <span>
-                              {formatMessageTime(
-                                message.receivedAt,
-                              )}
-                            </span>
-                          </div>
-
-                          <h3>
-                            {
-                              message.subject
-                            }
-                          </h3>
-
-                          <p>
-                            {
-                              message.snippet
-                            }
-                          </p>
-
-                          <div className="email-message-flags">
-                            {message.unread && (
-                              <span>
-                                Unread
-                              </span>
+                      <div className="email-message-main">
+                        <div className="email-message-topline">
+                          <strong>
+                            {cleanSender(
+                              message.from,
                             )}
+                          </strong>
 
-                            {message.important && (
-                              <span>
-                                Important
-                              </span>
+                          <span>
+                            {formatMessageTime(
+                              message.receivedAt,
                             )}
-
-                            {message.starred && (
-                              <span>
-                                Starred
-                              </span>
-                            )}
-
-                            {message.hasAttachments && (
-                              <span>
-                                Attachment
-                              </span>
-                            )}
-                          </div>
+                          </span>
                         </div>
-                      </button>
-                    ),
-                  )}
+
+                        <h3>{message.subject}</h3>
+                        <p>{message.snippet}</p>
+
+                        <div className="email-message-flags">
+                          {message.unread && (
+                            <span>Unread</span>
+                          )}
+
+                          {message.important && (
+                            <span>Important</span>
+                          )}
+
+                          {message.starred && (
+                            <span>Starred</span>
+                          )}
+
+                          {message.hasAttachments && (
+                            <span>Attachment</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -1178,9 +760,7 @@ function EmailWorkspace() {
             className="email-detail-backdrop"
             aria-label="Close email"
             onClick={() =>
-              setSelectedMessage(
-                null,
-              )
+              setSelectedMessage(null)
             }
           />
 
@@ -1192,9 +772,7 @@ function EmailWorkspace() {
                 </span>
 
                 <h2>
-                  {
-                    selectedMessage.subject
-                  }
+                  {selectedMessage.subject}
                 </h2>
               </div>
 
@@ -1202,9 +780,7 @@ function EmailWorkspace() {
                 type="button"
                 className="email-detail-close"
                 onClick={() =>
-                  setSelectedMessage(
-                    null,
-                  )
+                  setSelectedMessage(null)
                 }
                 aria-label="Close email"
               >
@@ -1215,36 +791,22 @@ function EmailWorkspace() {
             {isLoadingDetail ? (
               <div className="email-detail-loading">
                 <span className="email-loading-dot" />
-                Opening full
-                conversation...
+                Opening full conversation...
               </div>
             ) : detailError ? (
               <div className="email-error">
                 <strong>
-                  {selectedAccount
-                    ?.provider ===
-                  'zoho'
-                    ? 'Zoho message detail is next'
-                    : 'Could not open email'}
+                  Could not open email
                 </strong>
-
-                <p>
-                  {
-                    detailError
-                  }
-                </p>
+                <p>{detailError}</p>
               </div>
             ) : (
               <div className="email-thread">
                 {detailMessages.map(
-                  (
-                    message,
-                  ) => (
+                  (message) => (
                     <article
                       className="email-thread-message"
-                      key={
-                        message.id
-                      }
+                      key={message.id}
                     >
                       <div className="email-thread-meta">
                         <strong>
@@ -1269,10 +831,7 @@ function EmailWorkspace() {
 
                         {message.cc && (
                           <span>
-                            CC:{' '}
-                            {
-                              message.cc
-                            }
+                            CC: {message.cc}
                           </span>
                         )}
                       </div>
@@ -1299,9 +858,7 @@ function EmailWorkspace() {
                         </div>
                       )}
 
-                      {message
-                        .attachments
-                        .length >
+                      {message.attachments.length >
                         0 && (
                         <div className="email-thread-attachments">
                           <strong>
